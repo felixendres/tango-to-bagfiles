@@ -1,0 +1,9 @@
+*~
+CMakeLists.txt.user
+*.swp
+*.wpr
+*.wpu
+*.pyc
+*.o
+*.so
+
