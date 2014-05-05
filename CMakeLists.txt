@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(superframe_parser)
 
+set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -99,6 +103,7 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  include
 )
 
 ## Declare a cpp library
@@ -107,7 +112,7 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(superframe_parser_node src/superframe_parser_node.cpp)
+add_executable(parse_single_frame src/parse_single_frame.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -119,7 +124,7 @@ include_directories(
 # )
 
 #############
-## Install ##
+# Install ##
 #############
 
 # all install targets should use catkin DESTINATION variables
