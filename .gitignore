@@ -1,5 +1,13 @@
 *~
+
+#Qt creator stuff
 CMakeLists.txt.user
+*.config
+*.creator
+*.files
+*.includes
+
+
 *.swp
 *.wpr
 *.wpu
