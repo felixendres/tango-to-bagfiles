@@ -29,11 +29,11 @@
     PRINTE("\t\t\t", sf->header.frame.x, "%1$u (0x%1$0X)", CAM_EXP);\
     PRINTE("\t\t\t", sf->header.frame.x, "%1$u (0x%1$0X)", tear_flag);\
 
-void yuv420p_to_sf2(sf2_t *sf, uint16_t *buffer, const size_t size) {
+void yuv420pToSf2(sf2_t *sf, uint16_t *buffer, const size_t size) {
     memcpy(sf, buffer, size/*sizeof(*sf)*/);
 }
 
-double ConvertTicksToSeconds(uint32_t superframe_version,
+double convertTicksToSeconds(uint32_t superframe_version,
                              const TimeStamp& raw_timestamp) {
     if (superframe_version & 0x100) {
         return (((static_cast<uint64_t>(raw_timestamp.superframe_v2.ticks_hi) << 32)
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
     bytes_read = fread(buffer, 1, cols*rows*bpp, fp);
     fprintf(stdout, "Read %d bytes\n", bytes_read);
 
-    yuv420p_to_sf2(sf, buffer, cols*rows*bpp);
+    yuv420pToSf2(sf, buffer, cols*rows*bpp);
 
     // Print out the meta-data.
     fprintf(stdout, "Frame Data\n");
@@ -137,17 +137,17 @@ int main(int argc, char **argv) {
 
     fprintf(stdout, "Small Img (Wide Angle)\n");
     printf("\t\t\tTimestamp (s): %lf\n",
-           ConvertTicksToSeconds(sf->header.frame.sf_version,
+           convertTicksToSeconds(sf->header.frame.sf_version,
                                  sf->header.frame.small.timestamp));
     PRINT_IMG_HDR(small);
     fprintf(stdout, "Big Img (4MP Sensor)\n");
     printf("\t\t\tTimestamp (s): %lf\n",
-           ConvertTicksToSeconds(sf->header.frame.sf_version,
+           convertTicksToSeconds(sf->header.frame.sf_version,
                                  sf->header.frame.big.timestamp));
     PRINT_IMG_HDR(big);
     fprintf(stdout, "Depth Img\n");
     printf("\t\t\tTimestamp (s): %lf\n",
-           ConvertTicksToSeconds(sf->header.frame.sf_version,
+           convertTicksToSeconds(sf->header.frame.sf_version,
                                  sf->header.frame.depth.timestamp));
     PRINT_IMG_HDR(depth);
 
@@ -279,7 +279,7 @@ int main(int argc, char **argv) {
 
     rosbag::Bag bag ("test.bag", rosbag::bagmode::Write);
     sensor_msgs::Image bag_image;
-    bag_image.header.stamp = ros::Time (ConvertTicksToSeconds(sf->header.frame.sf_version, sf->header.frame.small.timestamp));
+    bag_image.header.stamp = ros::Time (convertTicksToSeconds(sf->header.frame.sf_version, sf->header.frame.small.timestamp));
     bag_image.header.frame_id = "superframe/image";
     bag_image.data.resize (SMALL_IMG_WIDTH * SMALL_IMG_HEIGHT);
     memcpy (&bag_image.data[0], sf->small_img, (SMALL_IMG_HEIGHT * SMALL_IMG_WIDTH) * sizeof (uint8_t));
