@@ -267,7 +267,7 @@ int main(int argc, char **argv) {
     }
 #endif
 
-//    snprintf(filename, sizeof(filename), "small_img.pgm");
+    snprintf(filename, sizeof(filename), "small_img.pgm");
 //    std::cout << "saving image " << std::endl;
 //    if ((fp2 = fopen(filename, "wb")) != NULL)
 //    {
