@@ -19,7 +19,6 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
-
 #include <rosbag/bag.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
@@ -34,19 +33,21 @@ namespace fs = boost::filesystem3;
     PRINTE("\t\t\t", sf->header.frame.x, "%1$u (0x%1$0X)", CAM_EXP);\
     PRINTE("\t\t\t", sf->header.frame.x, "%1$u (0x%1$0X)", tear_flag);\
 
-void yuv420p_to_sf2(sf2_t *sf, uint16_t *buffer, const size_t size) {
+void yuv420pToSf2 (sf2_t *sf, uint16_t *buffer, const size_t size)
+{
     memcpy(sf, buffer, size/*sizeof(*sf)*/);
 }
 
-double ConvertTicksToSeconds(uint32_t superframe_version,
-                             const TimeStamp& raw_timestamp) {
-    if (superframe_version & 0x100) {
-        return (((static_cast<uint64_t>(raw_timestamp.superframe_v2.ticks_hi) << 32)
-                 | (static_cast<uint64_t>(raw_timestamp.superframe_v2.ticks_lo))) /
-                (1000000. * PEANUT_TICKS_PER_MICROSECOND));
-    } else {
-        return static_cast<double>(raw_timestamp.superframe_v1) /
-                (static_cast<double>(PEANUT_TICKS_PER_MICROSECOND) * 1000. * 1000.);
+double convertTicksToSeconds(uint32_t superframe_version, const TimeStamp& raw_timestamp)
+{
+    if (superframe_version & 0x100)
+    {
+        return (((static_cast<uint64_t>(raw_timestamp.superframe_v2.ticks_hi) << 32) |
+                 (static_cast<uint64_t>(raw_timestamp.superframe_v2.ticks_lo))) / (1000000. * PEANUT_TICKS_PER_MICROSECOND));
+    }
+    else
+    {
+        return static_cast<double>(raw_timestamp.superframe_v1) / (static_cast<double>(PEANUT_TICKS_PER_MICROSECOND) * 1000. * 1000.);
     }
 }
 
@@ -54,74 +55,64 @@ double ConvertTicksToSeconds(uint32_t superframe_version,
 bool parseFile (std::string file_name, FILE *fp, uint16_t *buffer, sf2_t *sf, int cols, int rows, float bpp)
 {
     int bytes_read;
-
     // Parse the PGM file, skipping the # comment bits.  The # comment pad is
             // to maintain a 4kB block alignment for EXT4 writing.
     unsigned int img_width, img_height;
     char comment_str[8192] = {0};
 
-    if (fscanf (fp, "P5\n%d %d\n", &img_width, &img_height) != 2) {
-        fprintf(stderr, "Failed to parse header dimensions\n");
+    if (fscanf (fp, "P5\n%d %d\n", &img_width, &img_height) != 2)
+    {
+        fprintf (stderr, "Failed to parse header dimensions\n");
         return false;
     }
-    printf("PGM is %dx%d\n", img_width, img_height);
-    char *ret_str = fgets(comment_str, 4082, fp);
-    if (ret_str == NULL) {
+    printf ("PGM is %dx%d\n", img_width, img_height);
+    char *ret_str = fgets (comment_str, 4082, fp);
+    if (ret_str == NULL)
+    {
         fprintf(stderr, "Failed to parse comments!!!\n\n\n");
         return false;
-    } else {
-        printf("Parsed %d comment characters\n",
-               static_cast<int>(strlen(comment_str)));
+    }
+    else
+    {
+        printf ("Parsed %d comment characters\n", static_cast<int> (strlen (comment_str)));
     }
     unsigned int max_val;
-    if (fscanf(fp, "%d\n", &max_val) != 1) {
-        fprintf(stderr, "Failed to parse max value\n");
+    if (fscanf(fp, "%d\n", &max_val) != 1)
+    {
+        fprintf (stderr, "Failed to parse max value\n");
         return false;
     }
-    printf("PGM Maxval is %d\n", max_val);
+    printf ("PGM Maxval is %d\n", max_val);
 
     // Read in the data portion starting here.
-    bytes_read = fread(buffer, 1, cols*rows*bpp, fp);
+    bytes_read = fread (buffer, 1, cols * rows * bpp, fp);
     fprintf(stdout, "Read %d bytes\n", bytes_read);
 
-    yuv420p_to_sf2(sf, buffer, cols*rows*bpp);
+    yuv420pToSf2 (sf, buffer, cols * rows * bpp);
 
     // Print out the meta-data.
-    fprintf(stdout, "Frame Data\n");
-    printf("FileName: %s, Frame count: %d, New Flags: %x, Valid Flags: %x\n",
-           file_name.c_str (),
-           sf->header.frame.super_frame_count,
-           sf->header.frame.sf_valid_flags[1],
-           sf->header.frame.sf_valid_flags[0]);
-    printf("Superframe Version: 0x%x\nFirmware Version: %u %05u\n",
-           sf->header.frame.sf_version,
-           sf->header.frame.firmware_version[1],
-           sf->header.frame.firmware_version[0]);
-    printf("IMU Packet Count: %d\n",
-           sf->header.frame.imu_packet_count);
+    fprintf (stdout, "Frame Data\n");
+    printf ("FileName: %s, Frame count: %d, New Flags: %x, Valid Flags: %x\n", file_name.c_str (), sf->header.frame.super_frame_count,
+           sf->header.frame.sf_valid_flags[1], sf->header.frame.sf_valid_flags[0]);
+    printf ("Superframe Version: 0x%x\nFirmware Version: %u %05u\n", sf->header.frame.sf_version,
+           sf->header.frame.firmware_version[1], sf->header.frame.firmware_version[0]);
+    printf ("IMU Packet Count: %d\n", sf->header.frame.imu_packet_count);
 
     // This is ONLY tested on SF version 0x100.
-    if (sf->header.frame.sf_version != 0x100) {
-        fprintf(stderr, "Unknown SF Version 0x%x.  Expected 0x100. Stopped.",
-                sf->header.frame.sf_version);
+    if (sf->header.frame.sf_version != 0x100)
+    {
+        fprintf(stderr, "Unknown SF Version 0x%x.  Expected 0x100. Stopped.", sf->header.frame.sf_version);
         return false;
     }
-
     fprintf(stdout, "Small Img (Wide Angle)\n");
-    printf("\t\t\tTimestamp (s): %lf\n",
-           ConvertTicksToSeconds(sf->header.frame.sf_version,
-                                 sf->header.frame.small.timestamp));
+    printf("\t\t\tTimestamp (s): %lf\n", convertTicksToSeconds(sf->header.frame.sf_version, sf->header.frame.small.timestamp));
     PRINT_IMG_HDR(small);
     fprintf(stdout, "Big Img (4MP Sensor)\n");
-    printf("\t\t\tTimestamp (s): %lf\n",
-           ConvertTicksToSeconds(sf->header.frame.sf_version,
-                                 sf->header.frame.big.timestamp));
+    printf("\t\t\tTimestamp (s): %lf\n", convertTicksToSeconds (sf->header.frame.sf_version, sf->header.frame.big.timestamp));
     PRINT_IMG_HDR(big);
     fprintf(stdout, "Depth Img\n");
-    printf("\t\t\tTimestamp (s): %lf\n",
-           ConvertTicksToSeconds(sf->header.frame.sf_version,
-                                 sf->header.frame.depth.timestamp));
-    PRINT_IMG_HDR(depth);
+    printf("\t\t\tTimestamp (s): %lf\n", convertTicksToSeconds (sf->header.frame.sf_version, sf->header.frame.depth.timestamp));
+    PRINT_IMG_HDR (depth);
 
 #if 0
     // Performance counters are disabled in firmware by default.
@@ -284,13 +275,13 @@ int main(int argc, char **argv)
     bag_small_img.header.frame_id = "superframe/small_image";
     bag_small_img.height = SMALL_IMG_HEIGHT;
     bag_small_img.width = SMALL_IMG_WIDTH;
-    bag_small_img.encoding = "mono8";
+    bag_small_img.encoding = sensor_msgs::image_encodings::MONO8;
     bag_small_img.data.resize (SMALL_IMG_WIDTH * SMALL_IMG_HEIGHT);
     sensor_msgs::Image bag_big_img;
     bag_big_img.header.frame_id = "superframe/big_image";
     bag_big_img.height = BIG_RGB_HEIGHT;
     bag_big_img.width = BIG_RGB_WIDTH;
-    bag_big_img.encoding = "rgb8";
+    bag_big_img.encoding = sensor_msgs::image_encodings::YUV422;
     bag_big_img.data.resize (BIG_RGB_HEIGHT * BIG_RGB_WIDTH);
 
     while (it != eod)
@@ -306,13 +297,14 @@ int main(int argc, char **argv)
             if (!parseFile (it->path ().string (), fp, buffer, sf, cols, rows, bpp))
                 continue;
 
-            bag_small_img.header.stamp = ros::Time (ConvertTicksToSeconds (sf->header.frame.sf_version, sf->header.frame.small.timestamp));
+            double small_img_seconds = convertTicksToSeconds (sf->header.frame.sf_version, sf->header.frame.small.timestamp);
+            bag_small_img.header.stamp = ros::Time (std::floor (small_img_seconds), (small_img_seconds - std::floor (small_img_seconds)) * 1e6);
             memcpy (&bag_small_img.data[0], sf->small_img, (SMALL_IMG_HEIGHT * SMALL_IMG_WIDTH));
             bag.write ("tango/small_image", bag_small_img.header.stamp, bag_small_img);
 
-            bag_big_img.header.stamp = ros::Time (ConvertTicksToSeconds (sf->header.frame.sf_version, sf->header.frame.big.timestamp));
-            memcpy (&bag_big_img.data[0], sf->big_rgb, (BIG_RGB_HEIGHT * BIG_RGB_WIDTH));
-            bag.write ("tango/big_image", bag_big_img.header.stamp, bag_big_img);
+//            bag_big_img.header.stamp = ros::Time (ConvertTicksToSeconds (sf->header.frame.sf_version, sf->header.frame.big.timestamp));
+//            memcpy (&bag_big_img.data[0], sf->big_rgb, (BIG_RGB_HEIGHT * BIG_RGB_WIDTH));
+//            bag.write ("tango/big_image", bag_big_img.header.stamp, bag_big_img);
 
             fclose (fp);
         }
