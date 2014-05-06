@@ -19,7 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system filesystem)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -104,6 +104,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   include
+  ${Boost_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -112,16 +113,29 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(parse_single_frame src/parse_single_frame.cpp)
+add_executable(parse_single_frame
+src/parse_single_frame.cpp
+include/superframe_parser/superframe_v2.h
+)
+
+add_executable(parse_all_frames
+src/parse_all_frames.cpp
+include/superframe_parser/superframe_v2.h
+)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(superframe_parser_node superframe_parser_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(superframe_parser_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(parse_single_frame
+${catkin_LIBRARIES}
+)
+target_link_libraries(parse_all_frames
+${catkin_LIBRARIES}
+${Boost_LIBRARIES}
+)
+
 
 #############
 # Install ##
