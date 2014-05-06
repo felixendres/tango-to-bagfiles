@@ -88,9 +88,9 @@ find_package(Boost REQUIRED COMPONENTS system filesystem)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES superframe_parser
-#  CATKIN_DEPENDS geometry_msgs nav_msgs rosbag roscpp rospy std_msgs tf
+INCLUDE_DIRS include
+LIBRARIES super_frame_parser
+CATKIN_DEPENDS geometry_msgs nav_msgs rosbag roscpp rospy std_msgs tf
 #  DEPENDS system_lib
 )
 
@@ -108,9 +108,10 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(superframe_parser
-#   src/${PROJECT_NAME}/superframe_parser.cpp
-# )
+add_library(super_frame_parser
+src/super_frame_parser.cpp
+include/super_frame_parser.h
+)
 
 ## Declare a cpp executable
 add_executable(parse_single_frame
@@ -128,11 +129,19 @@ include/superframe_parser/superframe_v2.h
 # add_dependencies(superframe_parser_node superframe_parser_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
+target_link_libraries(super_frame_parser
+${catkin_LIBRARIES}
+${Boost_LIBRARIES}
+)
+
 target_link_libraries(parse_single_frame
 ${catkin_LIBRARIES}
+super_frame_parser
 )
+
 target_link_libraries(parse_all_frames
 ${catkin_LIBRARIES}
+super_frame_parser
 ${Boost_LIBRARIES}
 )
 
