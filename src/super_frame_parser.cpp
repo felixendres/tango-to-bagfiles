@@ -65,14 +65,11 @@ void SuperFrameParser::fileToSF ()
     if (fscanf(fd_, "%d\n", &max_val) != 1)
         throw std::runtime_error ("Failed to parse max value\n");
 
-    // Read in the data portion starting here
-    //    bytes_read = fread (buffer_, 1, cols_ * rows_ * bpp_, fd_);
-    bytes_read = fread (buffer_, 1, sizeof(sf2_t), fd_);
-    std::cout<<"sf2_t has "<<sizeof(sf2_t)<<" bytes, from the file I get "<<
-               bytes_read<<" bytes, the magic number is "<<int(cols_ * rows_ * bpp_)<<"\n";
+    // Read in the data portion starting here;
+    bytes_read = fread (buffer_, 1, sizeof (sf2_t), fd_);
 
     // connvert YUV420p to SF2
-    memcpy (super_frame_, buffer_, cols_ * rows_ * bpp_);
+    memcpy (super_frame_, buffer_, sizeof (sf2_t));
 
 }
 
