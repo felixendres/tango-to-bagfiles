@@ -1,6 +1,6 @@
 #include "super_frame_parser.h"
 #include <sensor_msgs/image_encodings.h>
-SuperFrameParser::SuperFrameParser (const std::string &super_frame_file)
+SuperFrameParser::SuperFrameParser (const std::string &super_frame_file, const std::string &intrinsin_params)
 {
     if ((fd_ = fopen (super_frame_file.c_str (), "rb")) == NULL)
         throw std::runtime_error ("Failed to open file");
@@ -11,6 +11,8 @@ SuperFrameParser::SuperFrameParser (const std::string &super_frame_file)
     point_cloud_msgs_.reset (new sensor_msgs::PointCloud2 ());
     imu_msgs_.reset (new sensor_msgs::Imu ());
 
+    parseIntrinsicParams (intrinsin_params);
+
     // allocate buffer and super_frame
     buffer_ = static_cast<uint16_t*> (malloc (sizeof (sf2_t)));
     super_frame_ = static_cast<sf2_t*> (malloc (sizeof (sf2_t)));
@@ -20,7 +22,7 @@ SuperFrameParser::SuperFrameParser (const std::string &super_frame_file)
     time_now_ = ros::Time::now ();
 
     // convert file to super frame format
-    fileToSF ();
+    parseSfFile ();
     // fill in the data for the small image
     fillSmallImgMsg ();
     // fill in the data for the big image
@@ -38,7 +40,7 @@ SuperFrameParser::~SuperFrameParser()
     free (buffer_);
 }
 
-void SuperFrameParser::fileToSF ()
+void SuperFrameParser::parseSfFile ()
 {
     int bytes_read;
     // Parse the PGM file, skipping the # comment bits.  The # comment pad is
@@ -66,6 +68,38 @@ void SuperFrameParser::fileToSF ()
     // connvert YUV420p to SF2
     memcpy (super_frame_, buffer_, sizeof (sf2_t));
 
+}
+
+void SuperFrameParser::parseIntrinsicParams (const std::string &intrinsin_params)
+{
+    std::ifstream f (intrinsin_params.c_str ());
+    if (!f.is_open ())
+        throw std::runtime_error ("Could not open intrinsic parameters file!");
+
+    std::string line;
+    getline (f, line);
+
+    size_t pos = 0;
+    std::string token;
+    std::vector<std::string> params;
+    std::string delimiter = ",";
+
+    while ((pos = line.find (delimiter)) != std::string::npos)
+    {
+        token = line.substr (0, pos);
+        params.push_back (token);
+        line.erase (0, pos + 1);
+    }
+    params.push_back (line);
+
+    model_.width = atoi (params[0].c_str ());
+    model_.height = atoi (params[1].c_str ());
+    model_.focal_length[0] = atof (params[2].c_str ());
+    model_.focal_length[1] = atof (params[3].c_str ());
+    model_.principal_point[0] = atof (params[4].c_str ());
+    model_.principal_point[1] = atof (params[5].c_str ());
+    model_.omega = atof (params[6].c_str ());
+    model_.max_angle = atof (params[7].c_str ());
 }
 
 double SuperFrameParser::convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp)
@@ -109,15 +143,14 @@ void SuperFrameParser::fillBigImgMsg ()
 
 void SuperFrameParser::fillPointCloudMsg ()
 {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    sensor_msgs::Image depth_image;
-    depth_image.height = point_cloud->height = DEPTH_IMG_HEIGHT;
-    depth_image.width = point_cloud->width = DEPTH_IMG_WIDTH;
-    depth_image.step = 2 * depth_image.width;
-    depth_image.data.resize (depth_image.width * depth_image.height * 2);
-    memcpy (&depth_image.data[0], super_frame_->depth_img, depth_image.data.size ());
+    sensor_msgs::ImagePtr depth_image (new sensor_msgs::Image ());
+    depth_image->height = DEPTH_IMG_HEIGHT;
+    depth_image->width = DEPTH_IMG_WIDTH;
+    depth_image->step = 2 * depth_image->width;
+    depth_image->data.resize (depth_image->width * depth_image->height * 2);
+    memcpy (&depth_image->data[0], super_frame_->depth_img, depth_image->data.size ());
 
-    point_cloud->resize (point_cloud->height * point_cloud->width);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
     convertImageToPointCloud (depth_image, point_cloud);
 
     pcl::toROSMsg (*point_cloud, *point_cloud_msgs_);
@@ -134,24 +167,27 @@ void SuperFrameParser::fillImuMsg ()
 
 }
 
-void SuperFrameParser::convertImageToPointCloud (const sensor_msgs::Image& depth_msg, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_msg)
+void SuperFrameParser::convertImageToPointCloud (const sensor_msgs::ImagePtr& depth_msg, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud)
 {
+    cloud->height = depth_msg->height;
+    cloud->width = depth_msg->width;
+    cloud->resize (cloud->height * cloud->width);
     // Use correct principal point from calibration
-    float center_x = 162.384; // c_x
-    float center_y = 85.5884; // c_y
+    float center_x = model_.principal_point[0]; // c_x
+    float center_y = model_.principal_point[1]; // c_y
 
     // Combine unit conversion (if necessary) with scaling by focal length for computing (X,Y)
     double unit_scaling = 0.001f;
-    float constant_x = unit_scaling / 234.973; // f_x
-    float constant_y = unit_scaling / 234.91; // f_y
+    float constant_x = unit_scaling / model_.focal_length[0]; // f_x
+    float constant_y = unit_scaling / model_.focal_length[1]; // f_y
     float bad_point = std::numeric_limits<float>::quiet_NaN ();
 
-    pcl::PointCloud<pcl::PointXYZ>::iterator pt_iter = cloud_msg->begin ();
-    const uint16_t* depth_row = reinterpret_cast<const uint16_t*> (&depth_msg.data[0]);
-    int row_step = depth_msg.step / sizeof (uint16_t);
-    for (int v = 0; v < (int)cloud_msg->height; ++v, depth_row += row_step)
+    pcl::PointCloud<pcl::PointXYZ>::iterator pt_iter = cloud->begin ();
+    const uint16_t* depth_row = reinterpret_cast<const uint16_t*> (&depth_msg->data[0]);
+    int row_step = depth_msg->step / sizeof (uint16_t);
+    for (int v = 0; v < (int)depth_msg->height; ++v, depth_row += row_step)
     {
-        for (int u = 0; u < (int)cloud_msg->width; ++u)
+        for (int u = 0; u < (int)depth_msg->width; ++u)
         {
             pcl::PointXYZ& pt = *pt_iter++;
             uint16_t depth = depth_row[u];
