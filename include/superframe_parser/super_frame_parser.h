@@ -40,8 +40,15 @@ struct CameraIntrinsics
 class SuperFrameParser
 {
 public:
-    /** Default constructor */
-    SuperFrameParser ();
+    /** Default constructor.
+        \param[in] name_space namespace for the topics and frame ids
+        \param[in] fisheye_name name for the fisheye topic and frame id
+        \param[in] narrow_name name for the narrow topic and frame id
+        \param[in] pointcloud_name name for the pointcloud topic and frame id */
+    SuperFrameParser (const std::string &name_space = "superframe",
+                      const std::string &fisheye_name = "fisheye",
+                      const std::string &narrow_name = "narrow",
+                      const std::string &pointcloud_name = "pointcloud");
 
     /** Frees allocated memory. */
     ~SuperFrameParser ();
@@ -74,6 +81,12 @@ private:
     sf2_t *super_frame_;
 
     ros::Time time_now_;
+
+    //////////  TOPIC AND FRAME ID NAMES ////////
+    std::string name_space_;
+    std::string fisheye_name_;
+    std::string narrow_name_;
+    std::string pointcloud_name_;
 
     /////////         MESSAGES         //////////
     sensor_msgs::ImagePtr small_img_msgs_;

@@ -3,21 +3,51 @@
 
 #include <superframe_parser/super_frame_parser.h>
 #include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
 #include <boost/foreach.hpp>
 namespace fs = boost::filesystem;
-
+namespace po = boost::program_options;
 int main (int argc, char **argv)
 {
-    if (argc != 3)
+    if (argc < 4)
     {
-        printf ("Too few arguments.\n");
-        printf ("Usage: %s super_frames_dir bag_output\n", argv[0]);
+        std::cout << "Too few arguments.\n";
+        std::cout << "Usage: " << argv[0] << " super_frames_dir bag_output\n";
         exit (0);
     }
 
     fs::path fs_path (argv[1]);
     if (!fs::is_directory (fs_path) || !fs::exists (fs_path))
+    {
+        std::cout << "Provided first argument (super_frames_dir) is not a valid dir or does not exist!\n";
         return -1;
+    }
+
+    po::options_description desc ("Allowed options");
+    std::string name_space;
+    std::string fisheye_name;
+    std::string narrow_name;
+    std::string pointcloud_name;
+    desc.add_options()
+            ("namespace", po::value<std::string> (&name_space)->default_value ("namespace"), "namespace for topics and frame ids")
+            ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
+            ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
+            ("pointcloud", po::value<std::string> (&pointcloud_name)->default_value ("pointcloud"), "name for pointcloud topic and frame id")
+            ;
+
+    // Parse the command line catching and displaying any
+    // parser errors
+    po::variables_map vm;
+    try
+    {
+        po::store(po::parse_command_line (argc, argv, desc), vm);
+        po::notify (vm);
+    }
+    catch (std::exception &e)
+    {
+        std::cout << std::endl << e.what() << std::endl;
+        std::cout << desc << std::endl;
+    }
 
     fs::directory_iterator it (argv[1]), eod;
     rosbag::Bag bag (argv[2], rosbag::bagmode::Write);
@@ -36,10 +66,10 @@ int main (int argc, char **argv)
 
         std::string file_path = it->path ().string ();
         std::cout << "parsing " << file_path << std::endl;
-        SuperFrameParser super_frame_parser;
+        SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, pointcloud_name);
         try
         {
-            super_frame_parser.parse (it->path ().string ());
+            sf_parser.parse (it->path ().string ());
         }
         catch (std::exception &e)
         {
@@ -48,9 +78,9 @@ int main (int argc, char **argv)
 
         if (correct_file)
         {
-            bag.write ("tango/small_image", super_frame_parser.getSmallImage ()->header.stamp, *super_frame_parser.getSmallImage ());
-            bag.write ("tango/big_image", super_frame_parser.getBigImage ()->header.stamp, *super_frame_parser.getBigImage ());
-            bag.write ("tango/pointcloud", super_frame_parser.getPointCloud ()->header.stamp, *super_frame_parser.getPointCloud ());
+            bag.write (name_space + "/" + fisheye_name, sf_parser.getSmallImage ()->header.stamp, *sf_parser.getSmallImage ());
+            bag.write (name_space + "/" + narrow_name, sf_parser.getBigImage ()->header.stamp, *sf_parser.getBigImage ());
+            bag.write (name_space + "/" + pointcloud_name, sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
 
 
             // save big img to disk
@@ -59,7 +89,7 @@ int main (int argc, char **argv)
 //            if ((fp3 = fopen (ss_big.str ().c_str (), "wb")) != NULL)
 //            {
 //                fprintf (fp3, big_img_header.str ().c_str ());
-//                fwrite (&super_frame_parser.getBigImage()->data[0], 1, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
+//                fwrite (&sf_parser.getBigImage()->data[0], 1, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
 //                fclose (fp3);
 //            }
         }
