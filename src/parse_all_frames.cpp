@@ -21,25 +21,37 @@ int main (int argc, char **argv)
 
     fs::directory_iterator it (argv[1]), eod;
     rosbag::Bag bag (argv[2], rosbag::bagmode::Write);
-    FILE *fp;
+    FILE *fp, *fp2, *fp3;
+    std::stringstream small_img_header;
+    small_img_header<< "P5\n" << SMALL_IMG_WIDTH << " " << SMALL_IMG_HEIGHT << "\n255\n";
+    std::stringstream big_img_header;
+    big_img_header << "P5\n" << BIG_RGB_WIDTH << " " << BIG_RGB_HEIGHT << "\n65535\n";
+    std::stringstream depth_img_header;
+    depth_img_header << "P5\n" << DEPTH_IMG_WIDTH << " " << DEPTH_IMG_HEIGHT << "\n65535\n";
     while (it != eod)
     {
-        if (fs::is_regular_file (it->path ()))
-        {
-            std::cout << "parsing " << it->path ().string () << std::endl;
-            SuperFrameParser super_frame_parser (it->path ().string ());
+        if (!fs::is_regular_file (it->path ()))
+            continue;
 
-            bag.write ("tango/small_image", super_frame_parser.getSmallImage ().header.stamp, super_frame_parser.getSmallImage ());
-            // save it to disk
-            std::stringstream ss_small;
-            ss_small << "small_img_" << it->path ().filename ().string() ;
-            if ((fp = fopen (ss_small.str ().c_str (), "wb")) != NULL)
-            {
-                fprintf (fp, "P5\n640 480\n255\n");
-                fwrite (&super_frame_parser.getSmallImage().data[0], SMALL_IMG_WIDTH, SMALL_IMG_HEIGHT, fp);
-                fclose (fp);
-            }
-        }
+        std::string file_path = it->path ().string ();
+        std::cout << "parsing " << file_path << std::endl;
+        SuperFrameParser super_frame_parser (it->path ().string ());
+
+        bag.write ("tango/small_image", super_frame_parser.getSmallImage ()->header.stamp, *super_frame_parser.getSmallImage ());
+        bag.write ("tango/big_image", super_frame_parser.getBigImage ()->header.stamp, *super_frame_parser.getBigImage ());
+        bag.write ("tango/pointcloud", super_frame_parser.getPointCloud ()->header.stamp, *super_frame_parser.getPointCloud ());
+
+
+        //            // save big img to disk
+        //            std::stringstream ss_big;
+        //            ss_big << "big_img_" << it->path ().filename ().string() ;
+        //            if ((fp3 = fopen (ss_big.str ().c_str (), "wb")) != NULL)
+        //            {
+        //                fprintf (fp3, big_img_header.str ().c_str ());
+        //                fwrite (&super_frame_parser.getBigImage()->data[0], 2, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
+        //                fclose (fp3);
+        //            }
+
         it++;
     }
 
