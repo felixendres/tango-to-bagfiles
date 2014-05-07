@@ -35,8 +35,7 @@ public:
         \param[in] cols number of columns of the super frame
         \param[in] rows number of rows of the super frame
         \param[in] bpp bytes per pixel of the super frame */
-    SuperFrameParser (const std::string &super_frame_file,
-                      const size_t rows = 1168, const size_t cols = 1280, const float bpp = 1.5);
+    SuperFrameParser (const std::string &super_frame_file);
 
     /** Closes the file descriptor and frees allocated memory. */
     ~SuperFrameParser ();
@@ -56,10 +55,6 @@ private:
     uint16_t *buffer_;
 
     ros::Time time_now_;
-
-    const size_t cols_;
-    const size_t rows_;
-    const float bpp_;
 
     sensor_msgs::ImagePtr small_img_msgs_;
     sensor_msgs::ImagePtr big_img_msgs_;
