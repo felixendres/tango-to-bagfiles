@@ -22,6 +22,17 @@
 
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+
+struct CameraModel
+{
+    size_t width, height; // Size of the image
+    float focal_length[2]; // Focal length in unit of horizontal and vertical pixels
+    float principal_point[2]; // Principal point location in pixels where (0,0) denotes the center of the upper left pixel
+    float omega; // Field of view parameters in radians
+    float max_angle; // Maximum angle corresponding to the maximum fov of the sensor in radians
+
+};
+
 /** Parses a super frame file to ros messages like sensor_msgs::Image. */
 class SuperFrameParser
 {
@@ -29,10 +40,8 @@ public:
     /** Opens the super frame file and already converts it to ros messages.
         Get the messages with getter functions.
         \param[in] super_frame_file string containing the path to the super frame file
-        \param[in] cols number of columns of the super frame
-        \param[in] rows number of rows of the super frame
-        \param[in] bpp bytes per pixel of the super frame */
-    SuperFrameParser (const std::string &super_frame_file);
+        \param[in] intrinsin_params name of the file for the instrinsic parameters */
+    SuperFrameParser (const std::string &super_frame_file, const std::string &intrinsin_params = "params.txt");
 
     /** Closes the file descriptor and frees allocated memory. */
     ~SuperFrameParser ();
@@ -58,9 +67,18 @@ private:
     sensor_msgs::PointCloud2Ptr point_cloud_msgs_;
     sensor_msgs::ImuPtr imu_msgs_;
 
-    void fileToSF ();
+    CameraModel model_;
+
+    /** parses the data from the superframe file to internal superframe structure */
+    void parseSfFile ();
+
+    /** parses the intrinsic parameters from the file to internal structure */
+
+    void parseIntrinsicParams (const std::string &intrinsin_params);
+    /** converts ticks got from the superframe header to seconds */
     double convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp);
-    void convertImageToPointCloud (const sensor_msgs::Image &depth_msg, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_msg);
+    /** converts a sensor_msgs::Image to a pcl::PointCloud */
+    void convertImageToPointCloud(const sensor_msgs::ImagePtr &depth_msg, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud);
 
     void fillSmallImgMsg ();
     void fillBigImgMsg ();
