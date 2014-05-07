@@ -7,9 +7,11 @@ SuperFrameParser::SuperFrameParser (const std::string &super_frame_file)
     if ((fd_ = fopen (super_frame_file.c_str (), "rb")) == NULL)
         throw std::runtime_error ("Failed to open file");
 
+    // create object
     small_img_msgs_.reset (new sensor_msgs::Image ());
     big_img_msgs_.reset(new sensor_msgs::Image ());
     point_cloud_msgs_.reset (new sensor_msgs::PointCloud2 ());
+    imu_msgs_.reset (new sensor_msgs::Imu ());
 
     // allocate buffer and super_frame
     buffer_ = static_cast<uint16_t*> (malloc (sizeof (sf2_t)));
@@ -124,7 +126,7 @@ void SuperFrameParser::fillPointCloudMsg ()
     pcl::toROSMsg (*point_cloud, *point_cloud_msgs_);
     point_cloud_msgs_->header.frame_id = "superframe/pointcloud";
     point_cloud_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
-                                                                                       super_frame_->header.frame.depth.timestamp));
+                                                                                        super_frame_->header.frame.depth.timestamp));
     point_cloud_msgs_->row_step = point_cloud_msgs_->width * 2;
 
 }
