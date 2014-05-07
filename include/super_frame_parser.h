@@ -19,8 +19,12 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/PointCloud2.h>
 
+#include <image_geometry/pinhole_camera_model.h>
 
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
 /** Parses a super frame file to ros messages like sensor_msgs::Image. */
 class SuperFrameParser
 {
@@ -40,8 +44,10 @@ public:
     /////////////         Getter Functions         /////////////////////////
     sf2_t* getSuperFrame () const { return super_frame_; }
 
-    sensor_msgs::Image getSmallImage () const { return small_img_msgs_; }
-    sensor_msgs::Imu getImu () const { return imu_msgs_; }
+    sensor_msgs::ImagePtr getSmallImage () const { return small_img_msgs_; }
+    sensor_msgs::ImagePtr getBigImage () const { return big_img_msgs_; }
+    sensor_msgs::PointCloud2Ptr getPointCloud () const { return point_cloud_msgs_; }
+    sensor_msgs::ImuPtr getImu () const { return imu_msgs_; }
     //////////////////////////////////////////////////////////////////////
 
 private:
@@ -55,14 +61,21 @@ private:
     const size_t rows_;
     const float bpp_;
 
-    sensor_msgs::Image small_img_msgs_;
-    sensor_msgs::Imu imu_msgs_;
+    sensor_msgs::ImagePtr small_img_msgs_;
+    sensor_msgs::ImagePtr big_img_msgs_;
+    sensor_msgs::PointCloud2Ptr point_cloud_msgs_;
+    sensor_msgs::ImuPtr imu_msgs_;
 
     void fileToSF ();
     double convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp);
+    void convertImageToPointCloud (const sensor_msgs::Image &depth_msg, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_msg);
 
     void fillSmallImgMsg ();
+    void fillBigImgMsg ();
+    void fillPointCloudMsg ();
     void fillImuMsg ();
+
+
 
 };
 

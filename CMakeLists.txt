@@ -16,10 +16,12 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tf
+  pcl_ros
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system filesystem)
+find_package(PCL REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -90,7 +92,7 @@ find_package(Boost REQUIRED COMPONENTS system filesystem)
 catkin_package(
 INCLUDE_DIRS include
 LIBRARIES super_frame_parser
-CATKIN_DEPENDS geometry_msgs nav_msgs rosbag roscpp rospy std_msgs tf
+CATKIN_DEPENDS geometry_msgs nav_msgs rosbag roscpp rospy std_msgs tf pcl_ros
 #  DEPENDS system_lib
 )
 
@@ -105,6 +107,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   include
   ${Boost_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -131,7 +134,7 @@ include/superframe_parser/superframe_v2.h
 ## Specify libraries to link a library or executable target against
 target_link_libraries(super_frame_parser
 ${catkin_LIBRARIES}
-${Boost_LIBRARIES}
+${PCL_LIBRARIES}
 )
 
 target_link_libraries(parse_single_frame
