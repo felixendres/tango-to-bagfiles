@@ -303,7 +303,7 @@ typedef struct PACKED sf2_t {
 
   // Start Firmware Overlay 1 (Firmware internal YUV422 format).
   // Big RGB Data YUV422.
-  uint16_t big_rgb[BIG_RGB_WIDTH * BIG_RGB_HEIGHT];
+  uint8_t big_rgb[BIG_RGB_WIDTH * BIG_RGB_HEIGHT];
 } sf2_t;
 
 #endif  // FRAME_DATA_SUPERFRAME_V2_H_
