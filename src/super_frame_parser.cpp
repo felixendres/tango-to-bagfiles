@@ -1,15 +1,28 @@
-#include "super_frame_parser.h"
+#include "superframe_parser/super_frame_parser.h"
 #include <sensor_msgs/image_encodings.h>
-SuperFrameParser::SuperFrameParser (const std::string &super_frame_file,
-                                    const std::string &depth_intrinsics,
-                                    const std::string &fisheye_intrinsics,
-                                    const std::string &narrow_intrinsics)
+
+SuperFrameParser::SuperFrameParser ()
+{
+}
+
+SuperFrameParser::~SuperFrameParser ()
+{
+    free (super_frame_);
+}
+
+void SuperFrameParser::parse (const std::string &super_frame_file,
+                              const std::string &depth_intrinsics,
+                              const std::string &fisheye_intrinsics,
+                              const std::string &narrow_intrinsics)
 {
     // create object
     small_img_msgs_.reset (new sensor_msgs::Image ());
     big_img_msgs_.reset(new sensor_msgs::Image ());
     point_cloud_msgs_.reset (new sensor_msgs::PointCloud2 ());
     imu_msgs_.reset (new sensor_msgs::Imu ());
+
+    // allocate super_frame
+    super_frame_ = static_cast<sf2_t*> (malloc (sizeof (sf2_t)));
 
     // parse all intrinsic parameters
     parseIntrinsicParams (depth_intrinsics, depth_intrinsics_);
@@ -30,11 +43,6 @@ SuperFrameParser::SuperFrameParser (const std::string &super_frame_file,
     fillPointCloudMsg ();
     // fill in the data for the imu
     fillImuMsg ();
-}
-
-SuperFrameParser::~SuperFrameParser ()
-{
-    free (super_frame_);
 }
 
 void SuperFrameParser::parseSfFile (const std::string &file)
@@ -67,8 +75,6 @@ void SuperFrameParser::parseSfFile (const std::string &file)
     uint16_t *buffer =  static_cast<uint16_t*> (malloc (sizeof (sf2_t)));
     bytes_read = fread (buffer, 1, sizeof (sf2_t), fd);
 
-    // allocate super_frame
-    super_frame_ = static_cast<sf2_t*> (malloc (sizeof (sf2_t)));
     // connvert YUV420p to SF2
     memcpy (super_frame_, buffer, sizeof (sf2_t));
     fclose (fd);
