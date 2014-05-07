@@ -2,11 +2,7 @@
 
 #include <pcl/io/io.h>
 
-SuperFrameParser::SuperFrameParser (const std::string &super_frame_file,
-                                    const size_t rows, const size_t cols, const float bpp) :
-    cols_ (cols),
-    rows_ (rows),
-    bpp_ (bpp)
+SuperFrameParser::SuperFrameParser (const std::string &super_frame_file)
 {
     if ((fd_ = fopen (super_frame_file.c_str (), "rb")) == NULL)
         throw std::runtime_error ("Failed to open file");
@@ -14,11 +10,10 @@ SuperFrameParser::SuperFrameParser (const std::string &super_frame_file,
     small_img_msgs_.reset (new sensor_msgs::Image ());
     big_img_msgs_.reset(new sensor_msgs::Image ());
     point_cloud_msgs_.reset (new sensor_msgs::PointCloud2 ());
+
     // allocate buffer and super_frame
-    //    buffer_ = static_cast<uint16_t*> (malloc (cols_ * rows_ * bpp_));
     buffer_ = static_cast<uint16_t*> (malloc (sizeof (sf2_t)));
     super_frame_ = static_cast<sf2_t*> (malloc (sizeof (sf2_t)));
-    memset(super_frame_,255,sizeof(sf2_t));
 
     // init ros time for timestamps, just a hack right now
     ros::Time::init ();
