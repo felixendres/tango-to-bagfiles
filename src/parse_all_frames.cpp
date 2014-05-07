@@ -1,8 +1,7 @@
 // Copyright 2013 Motorola Mobility LLC. Part of the Trailmix project.
 // CONFIDENTIAL. AUTHORIZED USE ONLY. DO NOT REDISTRIBUTE.
 
-#include <superframe_parser/superframe_v2.h>
-#include <super_frame_parser.h>
+#include <superframe_parser/super_frame_parser.h>
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
 namespace fs = boost::filesystem;
@@ -31,27 +30,39 @@ int main (int argc, char **argv)
     depth_img_header << "P5\n" << DEPTH_IMG_WIDTH << " " << DEPTH_IMG_HEIGHT << "\n65535\n";
     while (it != eod)
     {
+        bool correct_file = true;
         if (!fs::is_regular_file (it->path ()))
             continue;
 
         std::string file_path = it->path ().string ();
         std::cout << "parsing " << file_path << std::endl;
-        SuperFrameParser super_frame_parser (it->path ().string ());
+        SuperFrameParser super_frame_parser;
+        try
+        {
+            super_frame_parser.parse (it->path ().string ());
+        }
+        catch (std::exception &e)
+        {
+            correct_file = false;
+        }
 
-        bag.write ("tango/small_image", super_frame_parser.getSmallImage ()->header.stamp, *super_frame_parser.getSmallImage ());
-        bag.write ("tango/big_image", super_frame_parser.getBigImage ()->header.stamp, *super_frame_parser.getBigImage ());
-        bag.write ("tango/pointcloud", super_frame_parser.getPointCloud ()->header.stamp, *super_frame_parser.getPointCloud ());
+        if (correct_file)
+        {
+            bag.write ("tango/small_image", super_frame_parser.getSmallImage ()->header.stamp, *super_frame_parser.getSmallImage ());
+            bag.write ("tango/big_image", super_frame_parser.getBigImage ()->header.stamp, *super_frame_parser.getBigImage ());
+            bag.write ("tango/pointcloud", super_frame_parser.getPointCloud ()->header.stamp, *super_frame_parser.getPointCloud ());
 
 
-        // save big img to disk
-//        std::stringstream ss_big;
-//        ss_big << "big_img_" << it->path ().filename ().string() ;
-//        if ((fp3 = fopen (ss_big.str ().c_str (), "wb")) != NULL)
-//        {
-//            fprintf (fp3, big_img_header.str ().c_str ());
-//            fwrite (&super_frame_parser.getBigImage()->data[0], 1, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
-//            fclose (fp3);
-//        }
+            // save big img to disk
+//            std::stringstream ss_big;
+//            ss_big << "big_img_" << it->path ().filename ().string() ;
+//            if ((fp3 = fopen (ss_big.str ().c_str (), "wb")) != NULL)
+//            {
+//                fprintf (fp3, big_img_header.str ().c_str ());
+//                fwrite (&super_frame_parser.getBigImage()->data[0], 1, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
+//                fclose (fp3);
+//            }
+        }
 
         it++;
     }
