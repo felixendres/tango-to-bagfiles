@@ -16,10 +16,12 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tf
+  pcl_ros
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system filesystem)
+find_package(PCL REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -88,9 +90,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES superframe_parser
-#  CATKIN_DEPENDS geometry_msgs nav_msgs rosbag roscpp rospy std_msgs tf
+INCLUDE_DIRS include
+LIBRARIES super_frame_parser
+CATKIN_DEPENDS geometry_msgs nav_msgs rosbag roscpp rospy std_msgs tf pcl_ros
 #  DEPENDS system_lib
 )
 
@@ -104,24 +106,49 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   include
+  ${Boost_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-# add_library(superframe_parser
-#   src/${PROJECT_NAME}/superframe_parser.cpp
-# )
+add_library(super_frame_parser
+src/super_frame_parser.cpp
+include/superframe_parser/super_frame_parser.h
+include/superframe_parser/superframe_v2.h
+)
 
 ## Declare a cpp executable
-add_executable(parse_single_frame src/parse_single_frame.cpp)
+add_executable(parse_single_frame
+src/parse_single_frame.cpp
+include/superframe_parser/super_frame_parser.h
+)
+
+add_executable(parse_all_frames
+src/parse_all_frames.cpp
+include/superframe_parser/super_frame_parser.h
+)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(superframe_parser_node superframe_parser_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(superframe_parser_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(super_frame_parser
+${catkin_LIBRARIES}
+${PCL_LIBRARIES}
+)
+
+target_link_libraries(parse_single_frame
+${catkin_LIBRARIES}
+super_frame_parser
+)
+
+target_link_libraries(parse_all_frames
+${catkin_LIBRARIES}
+super_frame_parser
+${Boost_LIBRARIES}
+)
+
 
 #############
 # Install ##
