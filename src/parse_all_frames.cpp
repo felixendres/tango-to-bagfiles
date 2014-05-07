@@ -3,7 +3,8 @@
 
 #include <superframe_parser/superframe_v2.h>
 #include <super_frame_parser.h>
-
+#include <boost/filesystem.hpp>
+#include <boost/foreach.hpp>
 namespace fs = boost::filesystem;
 
 int main (int argc, char **argv)
@@ -25,7 +26,7 @@ int main (int argc, char **argv)
     std::stringstream small_img_header;
     small_img_header<< "P5\n" << SMALL_IMG_WIDTH << " " << SMALL_IMG_HEIGHT << "\n255\n";
     std::stringstream big_img_header;
-    big_img_header << "P5\n" << BIG_RGB_WIDTH << " " << BIG_RGB_HEIGHT << "\n65535\n";
+    big_img_header << "P5\n" << BIG_RGB_WIDTH << " " << BIG_RGB_HEIGHT << "\n255\n";
     std::stringstream depth_img_header;
     depth_img_header << "P5\n" << DEPTH_IMG_WIDTH << " " << DEPTH_IMG_HEIGHT << "\n65535\n";
     while (it != eod)
@@ -42,13 +43,13 @@ int main (int argc, char **argv)
         bag.write ("tango/pointcloud", super_frame_parser.getPointCloud ()->header.stamp, *super_frame_parser.getPointCloud ());
 
 
-//        // save big img to disk
+        // save big img to disk
 //        std::stringstream ss_big;
 //        ss_big << "big_img_" << it->path ().filename ().string() ;
 //        if ((fp3 = fopen (ss_big.str ().c_str (), "wb")) != NULL)
 //        {
 //            fprintf (fp3, big_img_header.str ().c_str ());
-//            fwrite (&super_frame_parser.getBigImage()->data[0], 2, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
+//            fwrite (&super_frame_parser.getBigImage()->data[0], 1, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
 //            fclose (fp3);
 //        }
 

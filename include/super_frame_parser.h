@@ -13,12 +13,9 @@
 #include <fstream>
 #include <superframe_parser/superframe_v2.h>
 
-#include <boost/filesystem.hpp>
-#include <boost/foreach.hpp>
 #include <rosbag/bag.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
-#include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/PointCloud2.h>
 
 #include <image_geometry/pinhole_camera_model.h>
