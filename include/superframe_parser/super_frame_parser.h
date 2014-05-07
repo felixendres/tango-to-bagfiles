@@ -40,19 +40,22 @@ struct CameraIntrinsics
 class SuperFrameParser
 {
 public:
-    /** Opens the super frame file and already converts it to ros messages.
+    /** Default constructor */
+    SuperFrameParser ();
+
+    /** Frees allocated memory. */
+    ~SuperFrameParser ();
+
+    /** Opens the super frame file and parses it to ros messages.
         Get the messages with getter functions.
         \param[in] super_frame_file string containing the path to the super frame file
         \param[in] depth_intrinsics name of the file for the depth instrinsic parameters
         \param[in] fisheye_intrinsics name of the file for the fisheye instrinsic parameters
         \param[in] narrow_intrinsics name of the file for the narrow instrinsic parameters */
-    SuperFrameParser (const std::string &super_frame_file,
-                      const std::string &depth_intrinsics = "depth_intrinsics.txt",
-                      const std::string &fisheye_intrinsics = "fisheye_intrinsics.txt",
-                      const std::string &narrow_intrinsics = "narrow_intrinsics.txt");
-
-    /** Frees allocated memory. */
-    ~SuperFrameParser ();
+    void parse (const std::string &super_frame_file,
+                const std::string &depth_intrinsics = "depth_intrinsics.txt",
+                const std::string &fisheye_intrinsics = "fisheye_intrinsics.txt",
+                const std::string &narrow_intrinsics = "narrow_intrinsics.txt");
 
     /** Returs a pointer to the internal super frame structure */
     sf2_t* getSuperFrame () const { return super_frame_; }
