@@ -1,8 +1,16 @@
 #include "superframe_parser/super_frame_parser.h"
 #include <sensor_msgs/image_encodings.h>
 
-SuperFrameParser::SuperFrameParser ()
+SuperFrameParser::SuperFrameParser (const std::string &name_space,
+                                    const std::string &fisheye_name,
+                                    const std::string &narrow_name,
+                                    const std::string &pointcloud_name) :
+    name_space_ (name_space),
+    fisheye_name_ (fisheye_name),
+    narrow_name_ (narrow_name),
+    pointcloud_name_ (pointcloud_name)
 {
+    std::cout << name_space_ << " " << fisheye_name_ << " " << narrow_name_ << " " << pointcloud_name_ << " " << std::endl;
 }
 
 SuperFrameParser::~SuperFrameParser ()
@@ -127,7 +135,8 @@ double SuperFrameParser::convertTicksToSeconds (const uint32_t super_frame_versi
 
 void SuperFrameParser::fillSmallImgMsg ()
 {
-    small_img_msgs_->header.frame_id = "superframe/small_image";
+    small_img_msgs_->header.frame_id = name_space_ + "/" + fisheye_name_;
+
     small_img_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
                                                                                       super_frame_->header.frame.small.timestamp));
     small_img_msgs_->height = SMALL_IMG_HEIGHT;
@@ -140,7 +149,7 @@ void SuperFrameParser::fillSmallImgMsg ()
 
 void SuperFrameParser::fillBigImgMsg ()
 {
-    big_img_msgs_->header.frame_id = "superframe/big_image";
+    big_img_msgs_->header.frame_id = name_space_ + "/" + narrow_name_;
     big_img_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
                                                                                     super_frame_->header.frame.big.timestamp));
     big_img_msgs_->height = BIG_RGB_HEIGHT;
@@ -164,7 +173,7 @@ void SuperFrameParser::fillPointCloudMsg ()
     convertImageToPointCloud (depth_image, point_cloud);
 
     pcl::toROSMsg (*point_cloud, *point_cloud_msgs_);
-    point_cloud_msgs_->header.frame_id = "superframe/pointcloud";
+    point_cloud_msgs_->header.frame_id = name_space_ + "/" + pointcloud_name_;
     point_cloud_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
                                                                                         super_frame_->header.frame.depth.timestamp));
     point_cloud_msgs_->row_step = point_cloud_msgs_->width * 2;
