@@ -42,6 +42,10 @@ double ConvertTicksToSeconds(uint32_t superframe_version,
 }
 
 int main(int argc, char **argv) {
+
+    printf("Struct size: %d, magic number: %d\n", sizeof(sf2_t), int(1280*1168*1.5));
+    exit(0);
+
   int bytes_read;
   FILE *fp, *fp2;
   int cols, rows;
@@ -59,7 +63,7 @@ int main(int argc, char **argv) {
   cols = 1280;
   // Note: "Small" superframes have size 640x896 (=1280x448).
   // The "header" saves space for the Y plane for the BigRGB image,
-  // and so it uses 1168 rows.
+  // and so it uses 1168 rowssizeof(*sf).
   // A "Full" superframe should have 1752 rows (additional space
   // on top of 1168 is for the UV plane).
   rows = 1168;
@@ -169,6 +173,7 @@ int main(int argc, char **argv) {
     PRINTE("\t\t\t", sf->header.profile.fm3, "%1$u (0x%1$0X)", feature_count);
   }
 
+#if 0
   // Print IMU data.  Note, to convert to physical units, refer to the github.
   // This is only to show timestamps and check if data is present.
   fprintf(stdout, "IMU Data, Raw Only\n");
@@ -246,7 +251,7 @@ int main(int argc, char **argv) {
   }
 
   fprintf(stdout, "\tcurrent\n");
-  for (unsigned int i = 0 ; i < MAX_FEATURE_CELL_COUNT ; ++i) {
+  for (unsigned int i = 0 ; i < MAX_FEAsf->small_img,TURE_CELL_COUNT ; ++i) {
     for (unsigned int j = 0 ; j < sf->header.vtrack.features_per_cell[i]
         && j < MAX_FEATURE_CELL_COUNT ; ++j) {
       int k = i*MAX_FEATURES_PER_CELL + j;
@@ -257,6 +262,7 @@ int main(int argc, char **argv) {
           sf->header.vtrack.curr_xy[k].x, sf->header.vtrack.curr_xy[k].y);
     }
   }
+#endif
   snprintf(filename, sizeof(filename), "small_img.pgm");
   if ((fp2 = fopen(filename, "wb")) != NULL) {
     fprintf(fp2, "P5\n640 480\n255\n");
@@ -264,5 +270,9 @@ int main(int argc, char **argv) {
     fclose(fp2);
   }
   fclose(fp);
+
+  //big image
+
+
   return 0;
 }
