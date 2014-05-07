@@ -233,6 +233,7 @@ int main(int argc, char **argv) {
             break;
         }
     }
+  }
 
     // Print out feature tracking data.
     fprintf(stdout, "VTRACK\n");
@@ -252,6 +253,7 @@ int main(int argc, char **argv) {
                     sf->header.vtrack.prev_xy[k].x, sf->header.vtrack.prev_xy[k].y);
         }
     }
+  }
 
     fprintf(stdout, "\tcurrent\n");
     for (unsigned int i = 0 ; i < MAX_FEATURE_CELL_COUNT ; ++i) {
