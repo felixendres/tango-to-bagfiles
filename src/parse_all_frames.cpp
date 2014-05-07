@@ -4,7 +4,7 @@
 #include <superframe_parser/superframe_v2.h>
 #include <super_frame_parser.h>
 
-namespace fs = boost::filesystem3;
+namespace fs = boost::filesystem;
 
 int main (int argc, char **argv)
 {
