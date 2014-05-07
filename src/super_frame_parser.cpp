@@ -1,5 +1,5 @@
 #include "super_frame_parser.h"
-
+#include <sensor_msgs/image_encodings.h>
 SuperFrameParser::SuperFrameParser (const std::string &super_frame_file)
 {
     if ((fd_ = fopen (super_frame_file.c_str (), "rb")) == NULL)
@@ -101,9 +101,9 @@ void SuperFrameParser::fillBigImgMsg ()
                                                                                     super_frame_->header.frame.big.timestamp));
     big_img_msgs_->height = BIG_RGB_HEIGHT;
     big_img_msgs_->width = BIG_RGB_WIDTH;
-    big_img_msgs_->step = big_img_msgs_->width * 2;
-    big_img_msgs_->encoding = sensor_msgs::image_encodings::YUV422;
-    big_img_msgs_->data.resize (big_img_msgs_->width * big_img_msgs_->height * 2);
+    big_img_msgs_->step = big_img_msgs_->width/* * 2*/;
+    big_img_msgs_->encoding = sensor_msgs::image_encodings::MONO8;
+    big_img_msgs_->data.resize (big_img_msgs_->width * big_img_msgs_->height/* * 2*/);
     memcpy (&big_img_msgs_->data[0], super_frame_->big_rgb, big_img_msgs_->data.size ());
 }
 
