@@ -1,7 +1,5 @@
 #include "super_frame_parser.h"
 
-#include <pcl/io/io.h>
-
 SuperFrameParser::SuperFrameParser (const std::string &super_frame_file)
 {
     if ((fd_ = fopen (super_frame_file.c_str (), "rb")) == NULL)
@@ -122,7 +120,6 @@ void SuperFrameParser::fillPointCloudMsg ()
     point_cloud->resize (point_cloud->height * point_cloud->width);
     convertImageToPointCloud (depth_image, point_cloud);
 
-    pcl::io::savePCDFileASCII ("cloud.pcd", *point_cloud);
     pcl::toROSMsg (*point_cloud, *point_cloud_msgs_);
     point_cloud_msgs_->header.frame_id = "superframe/pointcloud";
     point_cloud_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
