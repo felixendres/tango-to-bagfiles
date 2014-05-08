@@ -7,8 +7,7 @@ import rosbag
 import rospy
 from tf import transformations
 from tf.msg import tfMessage
-from geometry_msgs.msg import PoseStamped, Transform, TransformStamped
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Transform, TransformStamped
 
 
 def main():
@@ -89,8 +88,7 @@ def main():
             tf_stamped = TransformStamped()
             tf_stamped.header.frame_id = "/tango/imu"
             tf_stamped.header.seq = lineno
-            #depth has the special magic offset, see Tango documentation
-            tf_stamped.header.stamp = rospy.Time.from_seconds(ts - 0.175)
+            tf_stamped.header.stamp = rospy.Time.from_seconds(ts)
             tf_stamped.child_frame_id = "/tango/depth"
             tf_stamped.transform = depth_transform_msg
             msg.transforms.append(tf_stamped)
@@ -115,6 +113,7 @@ def main():
 
             outputbag.write("tf", msg, rospy.Time.from_seconds(ts))
 
+    outputbag.close()
     print("Bag creation complete, bagfile: {}".format(sys.argv[2]))
 
 if __name__ == '__main__':
