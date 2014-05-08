@@ -25,10 +25,14 @@ void SuperFrameParser::parse (const std::string &super_frame_file,
                               const std::string &narrow_intrinsics)
 {
     // create object
-    small_img_msgs_.reset (new sensor_msgs::Image ());
-    big_img_msgs_.reset(new sensor_msgs::Image ());
+    fisheye_msgs_.reset (new sensor_msgs::Image ());
+    narrow_msgs_.reset(new sensor_msgs::Image ());
     point_cloud_msgs_.reset (new sensor_msgs::PointCloud2 ());
     imu_msgs_.reset (new sensor_msgs::Imu ());
+
+    fisheye_info_.reset (new sensor_msgs::CameraInfo ());
+    narrow_info_.reset (new sensor_msgs::CameraInfo ());
+    depth_info_.reset (new sensor_msgs::CameraInfo ());
 
     // allocate super_frame
     super_frame_ = static_cast<sf2_t*> (malloc (sizeof (sf2_t)));
@@ -37,21 +41,18 @@ void SuperFrameParser::parse (const std::string &super_frame_file,
     boost::filesystem::path path (super_frame_file);
     file_name_ = path.filename ().string ();
     file_name_.erase (file_name_.size () -  path.extension ().string ().size ());
-    // parse all intrinsic parameters
-    parseIntrinsicParams (depth_intrinsics, depth_intrinsics_);
-    parseIntrinsicParams (fisheye_intrinsics, fisheye_intrinsics_);
-    parseIntrinsicParams (narrow_intrinsics, narrow_intrinsics_);
 
     // convert file to super frame format
     parseSfFile (super_frame_file);
     // fill in the data for the small image
-    fillSmallImgMsg ();
+    fillFisheyeMsg (fisheye_intrinsics);
     // fill in the data for the big image
-    fillBigImgMsg ();
+    fillNarrowMsg (narrow_intrinsics);
     // fill in the data for the depth image
-    fillPointCloudMsg ();
+    fillPointCloudMsg (depth_intrinsics);
     // fill in the data for the imu
-    fillImuMsg ();
+//    fillImuMsg ();
+
 }
 
 void SuperFrameParser::parseSfFile (const std::string &file)
@@ -90,9 +91,9 @@ void SuperFrameParser::parseSfFile (const std::string &file)
     fclose (fd);
 }
 
-void SuperFrameParser::parseIntrinsicParams (const std::string &intrinsic_params, CameraIntrinsics &intrinsics)
+void SuperFrameParser::parseCameraInfo (const std::string &params_file, std::vector<std::string> &params)
 {
-    std::ifstream f (intrinsic_params.c_str ());
+    std::ifstream f (params_file.c_str ());
     if (!f.is_open ())
         throw std::runtime_error ("Could not open intrinsic parameters file!");
 
@@ -101,7 +102,7 @@ void SuperFrameParser::parseIntrinsicParams (const std::string &intrinsic_params
 
     size_t pos = 0;
     std::string token;
-    std::vector<std::string> params;
+
     std::string delimiter = ",";
 
     while ((pos = line.find (delimiter)) != std::string::npos)
@@ -111,15 +112,6 @@ void SuperFrameParser::parseIntrinsicParams (const std::string &intrinsic_params
         line.erase (0, pos + 1);
     }
     params.push_back (line);
-
-    intrinsics.width = atoi (params[0].c_str ());
-    intrinsics.height = atoi (params[1].c_str ());
-    intrinsics.focal_length[0] = atof (params[2].c_str ());
-    intrinsics.focal_length[1] = atof (params[3].c_str ());
-    intrinsics.principal_point[0] = atof (params[4].c_str ());
-    intrinsics.principal_point[1] = atof (params[5].c_str ());
-    intrinsics.omega = atof (params[6].c_str ());
-    intrinsics.max_angle = atof (params[7].c_str ());
     f.close ();
 }
 
@@ -136,37 +128,103 @@ double SuperFrameParser::convertTicksToSeconds (const uint32_t super_frame_versi
     }
 }
 
-void SuperFrameParser::fillSmallImgMsg ()
+void SuperFrameParser::fillFisheyeMsg (const std::string &params_file)
 {
-    small_img_msgs_->header.frame_id = "/" + name_space_ + "/" + fisheye_name_;
-    small_img_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
-    small_img_msgs_->height = SMALL_IMG_HEIGHT;
-    small_img_msgs_->width = SMALL_IMG_WIDTH;
-    small_img_msgs_->step = small_img_msgs_->width;
-    small_img_msgs_->encoding = sensor_msgs::image_encodings::MONO8;
-    small_img_msgs_->data.resize (small_img_msgs_->width * small_img_msgs_->height);
-    memcpy (&small_img_msgs_->data[0], super_frame_->small_img, small_img_msgs_->data.size ());
+    fisheye_msgs_->header.frame_id = "/" + name_space_ + "/" + fisheye_name_;
+    fisheye_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
+    fisheye_msgs_->height = SMALL_IMG_HEIGHT;
+    fisheye_msgs_->width = SMALL_IMG_WIDTH;
+    fisheye_msgs_->step = fisheye_msgs_->width;
+    fisheye_msgs_->encoding = sensor_msgs::image_encodings::MONO8;
+    fisheye_msgs_->data.resize (fisheye_msgs_->width * fisheye_msgs_->height);
+    memcpy (&fisheye_msgs_->data[0], super_frame_->small_img, fisheye_msgs_->data.size ());
+
+
+    ///// fill in the camera infos ////////
+    std::vector<std::string> params;
+    parseCameraInfo (params_file, params);
+
+    fisheye_info_->header.frame_id = fisheye_msgs_->header.frame_id;
+    fisheye_info_->header.stamp = fisheye_msgs_->header.stamp;
+    fisheye_info_->width = atoi (params[0].c_str ());
+    fisheye_info_->height = atoi (params[1].c_str ());
+    fisheye_info_->distortion_model = "devernay";
+    fisheye_info_->D.resize (2);
+    fisheye_info_->D[0] = atof (params[6].c_str ()); // omega
+    fisheye_info_->D[1] = atof (params[7].c_str ()); // max_angle
+
+    /* Intrinsic camera matrix for the raw (distorted) images.
+       #     [fx  0 cx]
+       # K = [ 0 fy cy]
+       #     [ 0  0  1] */
+    boost::array<double, 9> K = { atof (params[2].c_str ()), 0.0,                       atof (params[4].c_str ()),
+                                  0.0,                       atof (params[3].c_str ()), atof (params[5].c_str ()),
+                                  0.0,                       0.0,                       1.0  } ;
+    fisheye_info_->K = K;
+
+    /* # Projection/camera matrix
+       #     [fx'  0  cx' Tx]
+       # P = [ 0  fy' cy' Ty]
+       #     [ 0   0   1   0] */
+
+    boost::array<double, 12> P = { atof (params[2].c_str ()), 0.0,                       atof (params[4].c_str ()), 0.,
+                                   0.0,                       atof (params[3].c_str ()), atof (params[5].c_str ()), 0.,
+                                   0.0,                       0.0,                       1.0,                       0. } ;
+    fisheye_info_->P = P;
 }
 
-void SuperFrameParser::fillBigImgMsg ()
+void SuperFrameParser::fillNarrowMsg (const std::string &params_file)
 {
-    big_img_msgs_->header.frame_id = "/" + name_space_ + "/" + narrow_name_;
+    narrow_msgs_->header.frame_id = "/" + name_space_ + "/" + narrow_name_;
 
     // big image has apperently some offset, adding the offset here
 //    big_img_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second +
 //                                         (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.big.timestamp) -
 //                                          convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
 
-    big_img_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
-    big_img_msgs_->height = BIG_RGB_HEIGHT;
-    big_img_msgs_->width = BIG_RGB_WIDTH;
-    big_img_msgs_->step = big_img_msgs_->width/* * 2*/;
-    big_img_msgs_->encoding = sensor_msgs::image_encodings::MONO8;
-    big_img_msgs_->data.resize (big_img_msgs_->width * big_img_msgs_->height/* * 2*/);
-    memcpy (&big_img_msgs_->data[0], super_frame_->big_rgb, big_img_msgs_->data.size ());
+    narrow_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
+    narrow_msgs_->height = BIG_RGB_HEIGHT;
+    narrow_msgs_->width = BIG_RGB_WIDTH;
+    narrow_msgs_->step = narrow_msgs_->width/* * 2*/;
+    narrow_msgs_->encoding = sensor_msgs::image_encodings::MONO8;
+    narrow_msgs_->data.resize (narrow_msgs_->width * narrow_msgs_->height/* * 2*/);
+    memcpy (&narrow_msgs_->data[0], super_frame_->big_rgb, narrow_msgs_->data.size ());
+
+
+    ///// fill in the camera infos ////////
+    std::vector<std::string> params;
+    parseCameraInfo (params_file, params);
+
+    narrow_info_->header.frame_id = narrow_msgs_->header.frame_id;
+    narrow_info_->header.stamp = narrow_msgs_->header.stamp;
+    narrow_info_->width = atoi (params[0].c_str ());
+    narrow_info_->height = atoi (params[1].c_str ());
+    narrow_info_->distortion_model = "devernay";
+    narrow_info_->D.resize (2);
+    narrow_info_->D[0] = atof (params[6].c_str ()); // omega
+    narrow_info_->D[1] = atof (params[7].c_str ()); // max_angle
+
+    /* Intrinsic camera matrix for the raw (distorted) images.
+       #     [fx  0 cx]
+       # K = [ 0 fy cy]
+       #     [ 0  0  1] */
+    boost::array<double, 9> K = { atof (params[2].c_str ()), 0.0,                       atof (params[4].c_str ()),
+                                  0.0,                       atof (params[3].c_str ()), atof (params[5].c_str ()),
+                                  0.0,                       0.0,                       1.0  } ;
+    narrow_info_->K = K;
+
+    /* # Projection/camera matrix
+       #     [fx'  0  cx' Tx]
+       # P = [ 0  fy' cy' Ty]
+       #     [ 0   0   1   0] */
+
+    boost::array<double, 12> P = { atof (params[2].c_str ()), 0.0,                       atof (params[4].c_str ()), 0.,
+                                   0.0,                       atof (params[3].c_str ()), atof (params[5].c_str ()), 0.,
+                                   0.0,                       0.0,                       1.0,                       0. } ;
+    narrow_info_->P = P;
 }
 
-void SuperFrameParser::fillPointCloudMsg ()
+void SuperFrameParser::fillPointCloudMsg (const std::string &params_file)
 {
     sensor_msgs::ImagePtr depth_image (new sensor_msgs::Image ());
     depth_image->height = DEPTH_IMG_HEIGHT;
@@ -174,6 +232,39 @@ void SuperFrameParser::fillPointCloudMsg ()
     depth_image->step = 2 * depth_image->width;
     depth_image->data.resize (depth_image->width * depth_image->height * 2);
     memcpy (&depth_image->data[0], super_frame_->depth_img, depth_image->data.size ());
+
+    ///// fill in the camera infos ////////
+    std::vector<std::string> params;
+    parseCameraInfo (params_file, params);
+
+    depth_info_->header.frame_id = point_cloud_msgs_->header.frame_id;
+    depth_info_->header.stamp = point_cloud_msgs_->header.stamp;
+    depth_info_->width = atoi (params[0].c_str ());
+    depth_info_->height = atoi (params[1].c_str ());
+    depth_info_->distortion_model = "devernay";
+    depth_info_->D.resize (2);
+    depth_info_->D[0] = atof (params[6].c_str ()); // omega
+    depth_info_->D[1] = atof (params[7].c_str ()); // max_angle
+
+    /* Intrinsic camera matrix for the raw (distorted) images.
+       #     [fx  0 cx]
+       # K = [ 0 fy cy]
+       #     [ 0  0  1] */
+    boost::array<double, 9> K = { atof (params[2].c_str ()), 0.0,                       atof (params[4].c_str ()),
+                                  0.0,                       atof (params[3].c_str ()), atof (params[5].c_str ()),
+                                  0.0,                       0.0,                       1.0  } ;
+    depth_info_->K = K;
+
+    /* # Projection/camera matrix
+       #     [fx'  0  cx' Tx]
+       # P = [ 0  fy' cy' Ty]
+       #     [ 0   0   1   0] */
+
+    boost::array<double, 12> P = { atof (params[2].c_str ()), 0.0,                       atof (params[4].c_str ()), 0.,
+                                   0.0,                       atof (params[3].c_str ()), atof (params[5].c_str ()), 0.,
+                                   0.0,                       0.0,                       1.0,                       0. } ;
+    depth_info_->P = P;
+
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
     convertImageToPointCloud (depth_image, point_cloud);
@@ -193,7 +284,7 @@ void SuperFrameParser::fillPointCloudMsg ()
 }
 
 
-void SuperFrameParser::fillImuMsg ()
+void SuperFrameParser::fillImuMsg (const std::string &params_file)
 {
 
 }
@@ -234,13 +325,13 @@ void SuperFrameParser::convertImageToPointCloud (const sensor_msgs::ImagePtr& de
     cloud->width = depth_msg->width;
     cloud->resize (cloud->height * cloud->width);
     // Use correct principal point from calibration
-    float center_x = depth_intrinsics_.principal_point[0]; // c_x
-    float center_y = depth_intrinsics_.principal_point[1]; // c_y
+    float center_x = depth_info_->K[2]; // c_x
+    float center_y = depth_info_->K[5]; // c_y
 
     // Combine unit conversion (if necessary) with scaling by focal length for computing (X,Y)
     double unit_scaling = 0.001f;
-    float constant_x = unit_scaling / depth_intrinsics_.focal_length[0]; // f_x
-    float constant_y = unit_scaling / depth_intrinsics_.focal_length[1]; // f_y
+    float constant_x = unit_scaling / depth_info_->K[0]; // f_x
+    float constant_y = unit_scaling / depth_info_->K[4]; // f_y
     float bad_point = std::numeric_limits<float>::quiet_NaN ();
 
     pcl::PointCloud<pcl::PointXYZ>::iterator pt_iter = cloud->begin ();
