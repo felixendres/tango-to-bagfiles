@@ -5,6 +5,8 @@ import sys
 import rosbag
 import rospy
 from tf import transformations
+from tf.msg import tfMessage
+from geometry_msgs.msg import Transform, TransformStamped
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
 
@@ -38,7 +40,7 @@ def main():
 
             #creating the pose
             p = PoseStamped()
-            p.header.frame_id = "tango_imu"
+            p.header.frame_id = "/tango/world"
             p.header.stamp = rospy.Time.from_seconds(ts1)
             p.header.seq = lineno
             p.pose.position.x = rotation_matrix[0, 3]
@@ -57,6 +59,20 @@ def main():
             o.child_frame_id = o.header.frame_id
             o.pose.pose = p.pose
             outputbag.write("tango_imu_odom", o, rospy.Time.from_seconds(ts1))
+
+            #creating the tf messages
+            tfmsg = tfMessage()
+            tf_stamped = TransformStamped()
+            tf_stamped.header.frame_id = "/tango/world"
+            tf_stamped.header.seq = lineno
+            tf_stamped.header.stamp = rospy.Time.from_seconds(ts1)
+            tf_stamped.child_frame_id = "/tango/imu"
+            tf_stamped.transform.translation.x = rotation_matrix[0, 3]
+            tf_stamped.transform.translation.y = rotation_matrix[1, 3]
+            tf_stamped.transform.translation.z = rotation_matrix[2, 3]
+            tf_stamped.transform.rotation = p.pose.orientation
+            tfmsg.transforms.append(tf_stamped)
+            outputbag.write("tf", tfmsg, rospy.Time.from_seconds(ts1))
 
     print("Bag creation complete, bagfile: {}".format(sys.argv[2]))
 
