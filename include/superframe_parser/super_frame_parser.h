@@ -18,19 +18,10 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/CameraInfo.h>
 
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
-
-struct CameraIntrinsics
-{
-    size_t width, height; // Size of the image
-    float focal_length[2]; // Focal length in unit of horizontal and vertical pixels
-    float principal_point[2]; // Principal point location in pixels where (0,0) denotes the center of the upper left pixel
-    float omega; // Field of view parameters in radians
-    float max_angle; // Maximum angle corresponding to the maximum fov of the sensor in radians
-
-};
 
 /** Parses a given super frame file with intrinsic parameters for all cameras to ros messages.
 
@@ -70,21 +61,28 @@ public:
     double convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp);
 
     /** Returs a pointer to the internal super frame structure */
-    sf2_t* getSuperFrame () const { return super_frame_; }
+    inline sf2_t* getSuperFrame () const { return super_frame_; }
 
     /** Returns a pointer to the small image message */
-    sensor_msgs::ImagePtr getSmallImage () const { return small_img_msgs_; }
+    inline sensor_msgs::ImagePtr getFisheyeImage () const { return fisheye_msgs_; }
 
     /** Returns a pointer to the big image message */
-    sensor_msgs::ImagePtr getBigImage () const { return big_img_msgs_; }
+    inline sensor_msgs::ImagePtr getNarrowImage () const { return narrow_msgs_; }
 
     /** Returns a pointer to the pointcoud message */
-    sensor_msgs::PointCloud2Ptr getPointCloud () const { return point_cloud_msgs_; }
+    inline sensor_msgs::PointCloud2Ptr getPointCloud () const { return point_cloud_msgs_; }
 
     /** Returns a pointer to the Imu message */
-    sensor_msgs::ImuPtr getImu () const { return imu_msgs_; }
+    inline sensor_msgs::ImuPtr getImu () const { return imu_msgs_; }
 
+    /** Returns a pointer to the fish eye camera info message */
+    inline sensor_msgs::CameraInfoPtr getFisheyeCameraInfo () const { return fisheye_info_; }
 
+    /** Returns a pointer to the narrow camera info message */
+    inline sensor_msgs::CameraInfoPtr getNarrowCameraInfo () const { return narrow_info_; }
+
+    /** Returns a pointer to the depth camera info message */
+    inline sensor_msgs::CameraInfoPtr getDepthCameraInfo () const { return depth_info_; }
 private:
     sf2_t *super_frame_;
 
@@ -95,15 +93,15 @@ private:
     std::string pointcloud_name_;
 
     /////////         MESSAGES         //////////
-    sensor_msgs::ImagePtr small_img_msgs_;
-    sensor_msgs::ImagePtr big_img_msgs_;
+    sensor_msgs::ImagePtr fisheye_msgs_;
+    sensor_msgs::ImagePtr narrow_msgs_;
     sensor_msgs::PointCloud2Ptr point_cloud_msgs_;
     sensor_msgs::ImuPtr imu_msgs_;
 
-    ////////     CAMERA INTRINSICS    //////////
-    CameraIntrinsics depth_intrinsics_;
-    CameraIntrinsics fisheye_intrinsics_;
-    CameraIntrinsics narrow_intrinsics_;
+    ////////     CAMERA INFOS    //////////
+    sensor_msgs::CameraInfoPtr depth_info_;
+    sensor_msgs::CameraInfoPtr fisheye_info_;
+    sensor_msgs::CameraInfoPtr narrow_info_;
 
     std::map<std::string, double> timestamp_map_;
     std::string file_name_;
@@ -112,16 +110,16 @@ private:
     void parseSfFile (const std::string &file);
 
     /** parses the intrinsic parameters from the file to internal structure */
-    void parseIntrinsicParams (const std::string &intrinsic_params, CameraIntrinsics &intrinsics);
+    void parseCameraInfo (const std::string &params_file, std::vector<std::string> &params);
 
     /** converts a sensor_msgs::Image to a pcl::PointCloud */
-    void convertImageToPointCloud(const sensor_msgs::ImagePtr &depth_msg, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud);
+    void convertImageToPointCloud (const sensor_msgs::ImagePtr &depth_msg, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud);
 
     ///////   FILL FUNCTIONS FOR THE MESSAGES   ////////
-    void fillSmallImgMsg ();
-    void fillBigImgMsg ();
-    void fillPointCloudMsg ();
-    void fillImuMsg ();
+    void fillFisheyeMsg (const std::string &params_file);
+    void fillNarrowMsg (const std::string &params_file);
+    void fillPointCloudMsg (const std::string &params_file);
+    void fillImuMsg (const std::string &params_file);
 
     void buildTimestampMap (const std::string &timestamp_file);
 
