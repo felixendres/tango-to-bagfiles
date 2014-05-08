@@ -6,6 +6,7 @@
 #endif
 // Tick Rate for Peanut, SF version 0x100
 #define PEANUT_TICKS_PER_MICROSECOND 180.
+#define DEPTH_TIMESTAMP_OFFSET -0.175
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,7 +49,8 @@ public:
     SuperFrameParser (const std::string &name_space = "superframe",
                       const std::string &fisheye_name = "fisheye",
                       const std::string &narrow_name = "narrow",
-                      const std::string &pointcloud_name = "pointcloud");
+                      const std::string &pointcloud_name = "pointcloud",
+                      const std::string &timestamp_file = "images.txt");
 
     /** Frees allocated memory. */
     ~SuperFrameParser ();
@@ -64,6 +66,9 @@ public:
                 const std::string &fisheye_intrinsics = "fisheye_intrinsics.txt",
                 const std::string &narrow_intrinsics = "narrow_intrinsics.txt");
 
+    /** converts ticks got from the superframe header to seconds */
+    double convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp);
+
     /** Returs a pointer to the internal super frame structure */
     sf2_t* getSuperFrame () const { return super_frame_; }
 
@@ -72,15 +77,16 @@ public:
 
     /** Returns a pointer to the big image message */
     sensor_msgs::ImagePtr getBigImage () const { return big_img_msgs_; }
+
     /** Returns a pointer to the pointcoud message */
     sensor_msgs::PointCloud2Ptr getPointCloud () const { return point_cloud_msgs_; }
+
     /** Returns a pointer to the Imu message */
     sensor_msgs::ImuPtr getImu () const { return imu_msgs_; }
 
+
 private:
     sf2_t *super_frame_;
-
-    ros::Time time_now_;
 
     //////////  TOPIC AND FRAME ID NAMES ////////
     std::string name_space_;
@@ -99,15 +105,15 @@ private:
     CameraIntrinsics fisheye_intrinsics_;
     CameraIntrinsics narrow_intrinsics_;
 
+    std::map<std::string, double> timestamp_map_;
+    std::string file_name_;
 
     /** parses the data from the superframe file to internal superframe structure */
     void parseSfFile (const std::string &file);
 
     /** parses the intrinsic parameters from the file to internal structure */
-
     void parseIntrinsicParams (const std::string &intrinsic_params, CameraIntrinsics &intrinsics);
-    /** converts ticks got from the superframe header to seconds */
-    double convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp);
+
     /** converts a sensor_msgs::Image to a pcl::PointCloud */
     void convertImageToPointCloud(const sensor_msgs::ImagePtr &depth_msg, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud);
 
@@ -116,6 +122,8 @@ private:
     void fillBigImgMsg ();
     void fillPointCloudMsg ();
     void fillImuMsg ();
+
+    void buildTimestampMap (const std::string &timestamp_file);
 
 };
 

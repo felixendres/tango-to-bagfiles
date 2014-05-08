@@ -7,9 +7,11 @@
 #include <boost/foreach.hpp>
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
+
+
 int main (int argc, char **argv)
 {
-    if (argc < 4)
+    if (argc < 3)
     {
         std::cout << "Too few arguments.\n";
         std::cout << "Usage: " << argv[0] << " super_frames_dir bag_output\n";
@@ -29,7 +31,7 @@ int main (int argc, char **argv)
     std::string narrow_name;
     std::string pointcloud_name;
     desc.add_options()
-            ("namespace", po::value<std::string> (&name_space)->default_value ("namespace"), "namespace for topics and frame ids")
+            ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
             ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
             ("pointcloud", po::value<std::string> (&pointcloud_name)->default_value ("pointcloud"), "name for pointcloud topic and frame id")
@@ -58,18 +60,33 @@ int main (int argc, char **argv)
     big_img_header << "P5\n" << BIG_RGB_WIDTH << " " << BIG_RGB_HEIGHT << "\n255\n";
     std::stringstream depth_img_header;
     depth_img_header << "P5\n" << DEPTH_IMG_WIDTH << " " << DEPTH_IMG_HEIGHT << "\n65535\n";
+
+    double prev_depth_timestamp = 0.;
+    double prev_narrow_timestamp = 0.;
+
+    // first read all file names
+    std::vector<std::string> files;
     while (it != eod)
     {
-        bool correct_file = true;
         if (!fs::is_regular_file (it->path ()))
             continue;
 
-        std::string file_path = it->path ().string ();
-        std::cout << "parsing " << file_path << std::endl;
+        files.push_back (it->path ().string ());
+        it++;
+    }
+    // sort the file names
+    std::sort (files.begin(), files.end());
+
+    // parse the files
+    for (size_t i = 0; i < files.size (); i++)
+    {
+        bool correct_file = true;
+
+        std::cout << "parsing " << files[i] << std::endl;
         SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, pointcloud_name);
         try
         {
-            sf_parser.parse (it->path ().string ());
+            sf_parser.parse (files[i]);
         }
         catch (std::exception &e)
         {
@@ -78,14 +95,30 @@ int main (int argc, char **argv)
 
         if (correct_file)
         {
-            bag.write (name_space + "/" + fisheye_name, sf_parser.getSmallImage ()->header.stamp, *sf_parser.getSmallImage ());
-            bag.write (name_space + "/" + narrow_name, sf_parser.getBigImage ()->header.stamp, *sf_parser.getBigImage ());
-            bag.write (name_space + "/" + pointcloud_name, sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
+            // always write small image
+            bag.write ("/" + name_space + "/" + fisheye_name, sf_parser.getSmallImage ()->header.stamp, *sf_parser.getSmallImage ());
 
+            // check if there is a new timestamp for the big image
+            // only write to bag, if there is a new capture
+            double narrow_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
+                                                                       sf_parser.getSuperFrame ()->header.frame.big.timestamp);
+            if (narrow_timestamp != prev_narrow_timestamp)
+                bag.write ("/" + name_space + "/" + narrow_name, sf_parser.getBigImage ()->header.stamp, *sf_parser.getBigImage ());
+
+            prev_narrow_timestamp = narrow_timestamp;
+
+            // check if there is a new timestamp for the depth image
+            // only write to bag, if there is a new capture
+            double depth_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
+                                                                      sf_parser.getSuperFrame ()->header.frame.depth.timestamp);
+            if (depth_timestamp != prev_depth_timestamp)
+                bag.write ("/" + name_space + "/" + pointcloud_name, sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
+
+            prev_depth_timestamp = depth_timestamp;
 
             // save big img to disk
 //            std::stringstream ss_big;
-//            ss_big << "big_img_" << it->path ().filename ().string() ;
+//            ss_big << "big_img_" << fs::path (files[i]).filename ().string() ;
 //            if ((fp3 = fopen (ss_big.str ().c_str (), "wb")) != NULL)
 //            {
 //                fprintf (fp3, big_img_header.str ().c_str ());
@@ -93,8 +126,6 @@ int main (int argc, char **argv)
 //                fclose (fp3);
 //            }
         }
-
-        it++;
     }
 
     bag.close();
