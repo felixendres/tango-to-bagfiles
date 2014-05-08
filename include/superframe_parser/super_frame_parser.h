@@ -23,16 +23,6 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 
-//struct CameraIntrinsics
-//{
-//    size_t width, height; // Size of the image
-//    float focal_length[2]; // Focal length in unit of horizontal and vertical pixels
-//    float principal_point[2]; // Principal point location in pixels where (0,0) denotes the center of the upper left pixel
-//    float omega; // Field of view parameters in radians
-//    float max_angle; // Maximum angle corresponding to the maximum fov of the sensor in radians
-
-//};
-
 /** Parses a given super frame file with intrinsic parameters for all cameras to ros messages.
 
     Currently extracted ros messages:
