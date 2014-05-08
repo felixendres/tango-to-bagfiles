@@ -42,7 +42,7 @@ public:
         \param[in] narrow_name name for the narrow topic and frame id
         \param[in] pointcloud_name name for the pointcloud topic and frame id
         \param[in] timestamp_file name path to the file with the timestamps */
-    SuperFrameParser (const std::string &name_space = "superframe",
+    SuperFrameParser (const std::string &name_space = "tango",
                       const std::string &fisheye_name = "fisheye",
                       const std::string &narrow_name = "narrow",
                       const std::string &pointcloud_name = "depth",
