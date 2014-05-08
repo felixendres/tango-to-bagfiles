@@ -85,7 +85,8 @@ void SuperFrameParser::parseSfFile (const std::string &file)
     bytes_read = fread (buffer, 1, sizeof (sf2_t), fd);
 
     // connvert YUV420p to SF2
-    memcpy (super_frame_, buffer, sizeof (sf2_t));
+    memcpy (super_frame_, buffer, bytes_read);
+    free (buffer);
     fclose (fd);
 }
 
