@@ -28,7 +28,11 @@
     Currently extracted ros messages:
     sensor_msgs::Image for the small fisheye camera
     sensor_msgs::Image for the big narrow camera
-    sensor_msgs::PointCloud2 for the depth camera (converted to a pointcloud) */
+    sensor_msgs::PointCloud2 for the depth camera (converted to a pointcloud)
+
+    sensor_msgs::CameraInfo for the fisheye camera info
+    sensor_msgs::CameraInfo for the narrow camera info
+    sensor_msgs::CameraInfo for the depth camera info */
 class SuperFrameParser
 {
 public:
@@ -36,7 +40,8 @@ public:
         \param[in] name_space namespace for the topics and frame ids
         \param[in] fisheye_name name for the fisheye topic and frame id
         \param[in] narrow_name name for the narrow topic and frame id
-        \param[in] pointcloud_name name for the pointcloud topic and frame id */
+        \param[in] pointcloud_name name for the pointcloud topic and frame id
+        \param[in] timestamp_file name path to the file with the timestamps */
     SuperFrameParser (const std::string &name_space = "superframe",
                       const std::string &fisheye_name = "fisheye",
                       const std::string &narrow_name = "narrow",

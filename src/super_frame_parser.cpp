@@ -131,7 +131,11 @@ double SuperFrameParser::convertTicksToSeconds (const uint32_t super_frame_versi
 void SuperFrameParser::fillFisheyeMsg (const std::string &params_file)
 {
     fisheye_msgs_->header.frame_id = "/" + name_space_ + "/" + fisheye_name_;
-    fisheye_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
+    std::map<std::string, double>::iterator it;
+    if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
+        throw std::runtime_error ("super frame name not found in timestamp file!");
+
+    fisheye_msgs_->header.stamp.fromSec (it->second);
     fisheye_msgs_->height = SMALL_IMG_HEIGHT;
     fisheye_msgs_->width = SMALL_IMG_WIDTH;
     fisheye_msgs_->step = fisheye_msgs_->width;
@@ -182,7 +186,11 @@ void SuperFrameParser::fillNarrowMsg (const std::string &params_file)
 //                                         (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.big.timestamp) -
 //                                          convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
 
-    narrow_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
+    std::map<std::string, double>::iterator it;
+    if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
+        throw std::runtime_error ("super frame name not found in timestamp file!");
+
+    narrow_msgs_->header.stamp.fromSec (it->second);
     narrow_msgs_->height = BIG_RGB_HEIGHT;
     narrow_msgs_->width = BIG_RGB_WIDTH;
     narrow_msgs_->step = narrow_msgs_->width/* * 2*/;
@@ -275,7 +283,11 @@ void SuperFrameParser::fillPointCloudMsg (const std::string &params_file)
     // pre defined offset from depth to small image timestamp
 //    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second + DEPTH_TIMESTAMP_OFFSET);
     // calculate depth offset by getting the difference from the superframe timestamps
-    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second +
+    std::map<std::string, double>::iterator it;
+    if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
+        throw std::runtime_error ("super frame name not found in timestamp file!");
+
+    point_cloud_msgs_->header.stamp.fromSec (it->second +
                                              (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.depth.timestamp) -
                                               convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
 
