@@ -6,6 +6,7 @@ CMakeLists.txt.user
 *.creator
 *.files
 *.includes
+.idea
 
 
 *.swp
