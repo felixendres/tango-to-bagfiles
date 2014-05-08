@@ -34,7 +34,7 @@ int main (int argc, char **argv)
             ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
             ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
-            ("pointcloud", po::value<std::string> (&pointcloud_name)->default_value ("pointcloud"), "name for pointcloud topic and frame id")
+            ("pointcloud", po::value<std::string> (&pointcloud_name)->default_value ("depth"), "name for pointcloud topic and frame id")
             ;
 
     // Parse the command line catching and displaying any
