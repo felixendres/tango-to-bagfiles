@@ -45,7 +45,7 @@ public:
     SuperFrameParser (const std::string &name_space = "superframe",
                       const std::string &fisheye_name = "fisheye",
                       const std::string &narrow_name = "narrow",
-                      const std::string &pointcloud_name = "pointcloud",
+                      const std::string &pointcloud_name = "depth",
                       const std::string &timestamp_file = "images.txt");
 
     /** Frees allocated memory. */
