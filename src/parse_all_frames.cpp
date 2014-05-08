@@ -14,14 +14,14 @@ int main (int argc, char **argv)
     if (argc < 3)
     {
         std::cout << "Too few arguments.\n";
-        std::cout << "Usage: " << argv[0] << " super_frames_dir bag_output\n";
+        std::cout << "Usage: " << argv[0] << " base_dir output.bag\n";
         exit (0);
     }
 
     fs::path fs_path (argv[1]);
     if (!fs::is_directory (fs_path) || !fs::exists (fs_path))
     {
-        std::cout << "Provided first argument (super_frames_dir) is not a valid dir or does not exist!\n";
+        std::cout << "Provided first argument (base_dir) is not a valid dir or does not exist!\n";
         return -1;
     }
 
@@ -51,9 +51,6 @@ int main (int argc, char **argv)
         std::cout << desc << std::endl;
     }
 
-    fs::directory_iterator it (argv[1]), eod;
-    rosbag::Bag bag (argv[2], rosbag::bagmode::Write);
-    FILE *fp3;
     std::stringstream small_img_header;
     small_img_header<< "P5\n" << SMALL_IMG_WIDTH << " " << SMALL_IMG_HEIGHT << "\n255\n";
     std::stringstream big_img_header;
@@ -66,23 +63,28 @@ int main (int argc, char **argv)
 
     // first read all file names
     std::vector<std::string> files;
+    fs::directory_iterator it (std::string (argv[1]) + std::string ("/superframes")), eod;
     while (it != eod)
     {
         if (!fs::is_regular_file (it->path ()))
+        {
+            std::cout << it->path ().string () << "is not a regular file! Continue..." << std::endl;
             continue;
-
+        }
         files.push_back (it->path ().string ());
         it++;
     }
     // sort the file names
-    std::sort (files.begin(), files.end());
+    std::sort (files.begin (), files.end ());
 
+    rosbag::Bag bag (argv[2], rosbag::bagmode::Write);
+    FILE *fp3;
     // parse the files
     for (size_t i = 0; i < files.size (); i++)
     {
         bool correct_file = true;
 
-        std::cout << "parsing " << files[i] << std::endl;
+        std::cout << "Parsing " << files[i] << "..." << std::endl;
         SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, pointcloud_name);
         try
         {
@@ -90,6 +92,7 @@ int main (int argc, char **argv)
         }
         catch (std::exception &e)
         {
+            std::cout << "Exception occured: " << e.what () << std::endl << "Continue..." << std::endl;
             correct_file = false;
         }
 
