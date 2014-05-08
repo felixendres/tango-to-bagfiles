@@ -96,14 +96,20 @@ int main (int argc, char **argv)
         if (correct_file)
         {
             // always write small image
-            bag.write ("/" + name_space + "/" + fisheye_name, sf_parser.getSmallImage ()->header.stamp, *sf_parser.getSmallImage ());
+            bag.write ("/" + name_space + "/" + fisheye_name + "/raw_image", sf_parser.getFisheyeImage ()->header.stamp, *sf_parser.getFisheyeImage ());
+            bag.write ("/" + name_space + "/" + fisheye_name + "/camera_info", sf_parser.getFisheyeCameraInfo ()->header.stamp,
+                       *sf_parser.getFisheyeCameraInfo ());
 
             // check if there is a new timestamp for the big image
             // only write to bag, if there is a new capture
             double narrow_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
                                                                        sf_parser.getSuperFrame ()->header.frame.big.timestamp);
             if (narrow_timestamp != prev_narrow_timestamp)
-                bag.write ("/" + name_space + "/" + narrow_name, sf_parser.getBigImage ()->header.stamp, *sf_parser.getBigImage ());
+            {
+                bag.write ("/" + name_space + "/" + narrow_name + "/raw_image", sf_parser.getNarrowImage ()->header.stamp, *sf_parser.getNarrowImage ());
+                bag.write ("/" + name_space + "/" + narrow_name + "/camera_info", sf_parser.getNarrowCameraInfo ()->header.stamp,
+                           *sf_parser.getNarrowCameraInfo ());
+            }
 
             prev_narrow_timestamp = narrow_timestamp;
 
@@ -112,7 +118,9 @@ int main (int argc, char **argv)
             double depth_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
                                                                       sf_parser.getSuperFrame ()->header.frame.depth.timestamp);
             if (depth_timestamp != prev_depth_timestamp)
-                bag.write ("/" + name_space + "/" + pointcloud_name, sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
+            {
+                bag.write ("/" + name_space + "/" + pointcloud_name + "/raw_data", sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
+            }
 
             prev_depth_timestamp = depth_timestamp;
 
