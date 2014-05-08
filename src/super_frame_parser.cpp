@@ -1,8 +1,17 @@
 #include "superframe_parser/super_frame_parser.h"
 #include <sensor_msgs/image_encodings.h>
 
-SuperFrameParser::SuperFrameParser ()
+SuperFrameParser::SuperFrameParser (const std::string &name_space,
+                                    const std::string &fisheye_name,
+                                    const std::string &narrow_name,
+                                    const std::string &pointcloud_name,
+                                    const std::string &timestamp_file) :
+    name_space_ (name_space),
+    fisheye_name_ (fisheye_name),
+    narrow_name_ (narrow_name),
+    pointcloud_name_ (pointcloud_name)
 {
+    buildTimestampMap (timestamp_file);
 }
 
 SuperFrameParser::~SuperFrameParser ()
@@ -24,14 +33,14 @@ void SuperFrameParser::parse (const std::string &super_frame_file,
     // allocate super_frame
     super_frame_ = static_cast<sf2_t*> (malloc (sizeof (sf2_t)));
 
+    // parse the file name for accesing the timestamp map
+    boost::filesystem::path path (super_frame_file);
+    file_name_ = path.filename ().string ();
+    file_name_.erase (file_name_.size () -  path.extension ().string ().size ());
     // parse all intrinsic parameters
     parseIntrinsicParams (depth_intrinsics, depth_intrinsics_);
     parseIntrinsicParams (fisheye_intrinsics, fisheye_intrinsics_);
     parseIntrinsicParams (narrow_intrinsics, narrow_intrinsics_);
-
-    // init ros time for timestamps, just a hack right now
-    ros::Time::init ();
-    time_now_ = ros::Time::now ();
 
     // convert file to super frame format
     parseSfFile (super_frame_file);
@@ -110,6 +119,7 @@ void SuperFrameParser::parseIntrinsicParams (const std::string &intrinsic_params
     intrinsics.principal_point[1] = atof (params[5].c_str ());
     intrinsics.omega = atof (params[6].c_str ());
     intrinsics.max_angle = atof (params[7].c_str ());
+    f.close ();
 }
 
 double SuperFrameParser::convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp)
@@ -127,9 +137,8 @@ double SuperFrameParser::convertTicksToSeconds (const uint32_t super_frame_versi
 
 void SuperFrameParser::fillSmallImgMsg ()
 {
-    small_img_msgs_->header.frame_id = "superframe/small_image";
-    small_img_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
-                                                                                      super_frame_->header.frame.small.timestamp));
+    small_img_msgs_->header.frame_id = "/" + name_space_ + "/" + fisheye_name_;
+    small_img_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
     small_img_msgs_->height = SMALL_IMG_HEIGHT;
     small_img_msgs_->width = SMALL_IMG_WIDTH;
     small_img_msgs_->step = small_img_msgs_->width;
@@ -140,9 +149,14 @@ void SuperFrameParser::fillSmallImgMsg ()
 
 void SuperFrameParser::fillBigImgMsg ()
 {
-    big_img_msgs_->header.frame_id = "superframe/big_image";
-    big_img_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
-                                                                                    super_frame_->header.frame.big.timestamp));
+    big_img_msgs_->header.frame_id = "/" + name_space_ + "/" + narrow_name_;
+
+    // big image has apperently some offset, adding the offset here
+//    big_img_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second +
+//                                         (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.big.timestamp) -
+//                                          convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
+
+    big_img_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second);
     big_img_msgs_->height = BIG_RGB_HEIGHT;
     big_img_msgs_->width = BIG_RGB_WIDTH;
     big_img_msgs_->step = big_img_msgs_->width/* * 2*/;
@@ -164,9 +178,15 @@ void SuperFrameParser::fillPointCloudMsg ()
     convertImageToPointCloud (depth_image, point_cloud);
 
     pcl::toROSMsg (*point_cloud, *point_cloud_msgs_);
-    point_cloud_msgs_->header.frame_id = "superframe/pointcloud";
-    point_cloud_msgs_->header.stamp = time_now_ + ros::Duration (convertTicksToSeconds (super_frame_->header.frame.sf_version,
-                                                                                        super_frame_->header.frame.depth.timestamp));
+    point_cloud_msgs_->header.frame_id = "/" + name_space_ + "/" + pointcloud_name_;
+
+    // pre defined offset from depth to small image timestamp
+//    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second + DEPTH_TIMESTAMP_OFFSET);
+    // calculate depth offset by getting the difference from the superframe timestamps
+    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second +
+                                             (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.depth.timestamp) -
+                                              convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
+
     point_cloud_msgs_->row_step = point_cloud_msgs_->width * 2;
 
 }
@@ -174,6 +194,36 @@ void SuperFrameParser::fillPointCloudMsg ()
 
 void SuperFrameParser::fillImuMsg ()
 {
+
+}
+
+void SuperFrameParser::buildTimestampMap (const std::string &timestamp_file)
+{
+    std::ifstream f (timestamp_file.c_str ());
+    if (!f.is_open ())
+        throw std::runtime_error ("Could not open timestamp file!");
+
+    std::string line;
+    std::string token;
+    std::string delimiter = ",";
+    while (getline (f, line))
+    {
+        size_t pos = 0;
+        std::pair<std::string, double> p;
+
+        // first token is the image name
+        pos = line.find (delimiter);
+        token = line.substr (0, pos);
+        p.first = token;
+        line.erase (0, pos + 1);
+
+        // second token is the timestamp
+        pos = line.find (delimiter);
+        token = line.substr (0, pos);
+        p.second = atof (token.c_str ());
+
+        timestamp_map_.insert (p);
+    }
 
 }
 
