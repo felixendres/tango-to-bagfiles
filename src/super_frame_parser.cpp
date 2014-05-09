@@ -62,8 +62,11 @@ void SuperFrameParser::parseSfFile (const std::string &file)
 {
     FILE *fd;
     if ((fd = fopen (file.c_str (), "rb")) == NULL)
-        throw std::runtime_error ("Failed to open file");
-
+    {
+        std::stringstream ss;
+        ss << "Failed to open file " << file;
+        throw std::runtime_error (ss.str ());
+    }
     int bytes_read;
     // Parse the PGM file, skipping the # comment bits.  The # comment pad is
     // to maintain a 4kB block alignment for EXT4 writing.
@@ -72,8 +75,9 @@ void SuperFrameParser::parseSfFile (const std::string &file)
 
     // get header dimensions
     if (fscanf (fd, "P5\n%d %d\n", &img_width, &img_height) != 2)
+    {
         throw std::runtime_error ("Failed to parse header dimensions\n");
-
+    }
     // get comments
     char *ret_str = fgets (comment_str, 4082, fd);
     if (ret_str == NULL)
@@ -312,7 +316,7 @@ void SuperFrameParser::buildTimestampMap (const std::string &timestamp_file)
 {
     std::ifstream f (timestamp_file.c_str ());
     if (!f.is_open ())
-        throw std::runtime_error ("Could not open timestamp file!");
+        throw std::runtime_error ("Could not open timestamp file");
 
     std::string line;
     std::string token;

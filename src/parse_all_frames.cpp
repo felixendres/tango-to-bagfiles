@@ -30,12 +30,14 @@ int main (int argc, char **argv)
     std::string fisheye_name;
     std::string narrow_name;
     std::string depth_name;
+    std::string timestamp_name;
     bool no_narrow = false;
     desc.add_options ()
             ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
             ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
             ("pointcloud", po::value<std::string> (&depth_name)->default_value ("depth"), "name for pointcloud topic and frame id")
+            ("timestamp", po::value<std::string> (&timestamp_name)->default_value ("images.txt"), "name for the timestamp file")
             ("no_narrow", po::bool_switch (&no_narrow), "provide it if narrow images should not be saved into bag files") ;
 
     // Parse the command line catching and displaying any
@@ -86,9 +88,11 @@ int main (int argc, char **argv)
     for (size_t i = 0; i < files.size (); i++)
     {
         bool correct_file = true;
-
+        std::string folder_name = std::string (argv[1]) + "/";
         std::cout << "Parsing " << files[i] << "..." << std::endl;
-        SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, depth_name);
+        SuperFrameParser sf_parser (name_space, folder_name + fisheye_name,
+                                    folder_name + narrow_name, folder_name + depth_name,
+                                    folder_name + timestamp_name);
         try
         {
             sf_parser.parse (files[i]);
