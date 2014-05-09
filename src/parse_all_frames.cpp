@@ -30,19 +30,20 @@ int main (int argc, char **argv)
     std::string fisheye_name;
     std::string narrow_name;
     std::string pointcloud_name;
-    desc.add_options()
+    bool no_narrow = false;
+    desc.add_options ()
             ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
             ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
             ("pointcloud", po::value<std::string> (&pointcloud_name)->default_value ("depth"), "name for pointcloud topic and frame id")
-            ;
+            ("no_narrow", po::bool_switch (&no_narrow), "provide it if narrow images should not be saved into bag files") ;
 
     // Parse the command line catching and displaying any
     // parser errors
     po::variables_map vm;
     try
     {
-        po::store(po::parse_command_line (argc, argv, desc), vm);
+        po::store (po::parse_command_line (argc, argv, desc), vm);
         po::notify (vm);
     }
     catch (std::exception &e)
@@ -50,6 +51,8 @@ int main (int argc, char **argv)
         std::cout << std::endl << e.what() << std::endl;
         std::cout << desc << std::endl;
     }
+
+    std::cout << no_narrow << std::endl;
 
     std::stringstream small_img_header;
     small_img_header<< "P5\n" << SMALL_IMG_WIDTH << " " << SMALL_IMG_HEIGHT << "\n255\n";
@@ -103,18 +106,21 @@ int main (int argc, char **argv)
             bag.write ("/" + name_space + "/" + fisheye_name + "/camera_info", sf_parser.getFisheyeCameraInfo ()->header.stamp,
                        *sf_parser.getFisheyeCameraInfo ());
 
-            // check if there is a new timestamp for the big image
-            // only write to bag, if there is a new capture
-            double narrow_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
-                                                                       sf_parser.getSuperFrame ()->header.frame.big.timestamp);
-            if (narrow_timestamp != prev_narrow_timestamp)
+            if (!no_narrow)
             {
-                bag.write ("/" + name_space + "/" + narrow_name + "/raw_image", sf_parser.getNarrowImage ()->header.stamp, *sf_parser.getNarrowImage ());
-                bag.write ("/" + name_space + "/" + narrow_name + "/camera_info", sf_parser.getNarrowCameraInfo ()->header.stamp,
-                           *sf_parser.getNarrowCameraInfo ());
-            }
+                // check if there is a new timestamp for the big image
+                // only write to bag, if there is a new capture
+                double narrow_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
+                                                                           sf_parser.getSuperFrame ()->header.frame.big.timestamp);
+                if (narrow_timestamp != prev_narrow_timestamp)
+                {
+                    bag.write ("/" + name_space + "/" + narrow_name + "/raw_image", sf_parser.getNarrowImage ()->header.stamp, *sf_parser.getNarrowImage ());
+                    bag.write ("/" + name_space + "/" + narrow_name + "/camera_info", sf_parser.getNarrowCameraInfo ()->header.stamp,
+                               *sf_parser.getNarrowCameraInfo ());
+                }
 
-            prev_narrow_timestamp = narrow_timestamp;
+                prev_narrow_timestamp = narrow_timestamp;
+            }
 
             // check if there is a new timestamp for the depth image
             // only write to bag, if there is a new capture
