@@ -45,7 +45,7 @@ public:
     SuperFrameParser (const std::string &name_space = "tango",
                       const std::string &fisheye_name = "fisheye",
                       const std::string &narrow_name = "narrow",
-                      const std::string &pointcloud_name = "depth",
+                      const std::string &depth_name = "depth",
                       const std::string &timestamp_file = "images.txt");
 
     /** Frees allocated memory. */
@@ -58,9 +58,9 @@ public:
         \param[in] fisheye_intrinsics name of the file for the fisheye instrinsic parameters
         \param[in] narrow_intrinsics name of the file for the narrow instrinsic parameters */
     void parse (const std::string &super_frame_file,
-                const std::string &depth_intrinsics = "depth_intrinsics.txt",
-                const std::string &fisheye_intrinsics = "fisheye_intrinsics.txt",
-                const std::string &narrow_intrinsics = "narrow_intrinsics.txt");
+                const std::string &fisheye_intrinsics_file = "fisheye_intrinsics.txt",
+                const std::string &narrow_intrinsics_file = "narrow_intrinsics.txt",
+                const std::string &depth_intrinsics_file = "depth_intrinsics.txt");
 
     /** converts ticks got from the superframe header to seconds */
     double convertTicksToSeconds (const uint32_t super_frame_version, const TimeStamp& raw_timestamp);
@@ -73,6 +73,9 @@ public:
 
     /** Returns a pointer to the big image message */
     inline sensor_msgs::ImagePtr getNarrowImage () const { return narrow_msgs_; }
+
+    /** Returns a pointer to the depth image message */
+    inline sensor_msgs::ImagePtr getDepthImage () const { return depth_msgs_; }
 
     /** Returns a pointer to the pointcoud message */
     inline sensor_msgs::PointCloud2Ptr getPointCloud () const { return point_cloud_msgs_; }
@@ -95,11 +98,12 @@ private:
     std::string name_space_;
     std::string fisheye_name_;
     std::string narrow_name_;
-    std::string pointcloud_name_;
+    std::string depth_name_;
 
     /////////         MESSAGES         //////////
     sensor_msgs::ImagePtr fisheye_msgs_;
     sensor_msgs::ImagePtr narrow_msgs_;
+    sensor_msgs::ImagePtr depth_msgs_;
     sensor_msgs::PointCloud2Ptr point_cloud_msgs_;
     sensor_msgs::ImuPtr imu_msgs_;
 
@@ -123,7 +127,8 @@ private:
     ///////   FILL FUNCTIONS FOR THE MESSAGES   ////////
     void fillFisheyeMsg (const std::string &params_file);
     void fillNarrowMsg (const std::string &params_file);
-    void fillPointCloudMsg (const std::string &params_file);
+    void fillDepthMsg (const std::string &params_file);
+    void fillPointCloudMsg ();
     void fillImuMsg (const std::string &params_file);
 
     void buildTimestampMap (const std::string &timestamp_file);
