@@ -54,8 +54,6 @@ int main (int argc, char **argv)
         std::cout << desc << std::endl;
     }
 
-    std::cout << no_narrow << std::endl;
-
     std::stringstream small_img_header;
     small_img_header<< "P5\n" << SMALL_IMG_WIDTH << " " << SMALL_IMG_HEIGHT << "\n255\n";
     std::stringstream big_img_header;
@@ -90,12 +88,14 @@ int main (int argc, char **argv)
         bool correct_file = true;
         std::string folder_name = std::string (argv[1]) + "/";
         std::cout << "Parsing " << files[i] << "..." << std::endl;
-        SuperFrameParser sf_parser (name_space, folder_name + fisheye_name,
-                                    folder_name + narrow_name, folder_name + depth_name,
+        SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, depth_name,
                                     folder_name + timestamp_name);
         try
         {
-            sf_parser.parse (files[i]);
+            sf_parser.parse (files[i],
+                             folder_name + fisheye_name + "_intrinsics.txt",
+                             folder_name + narrow_name + "_intrinsics.txt",
+                             folder_name + depth_name + "_intrinsics.txt");
         }
         catch (std::exception &e)
         {
