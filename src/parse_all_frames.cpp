@@ -5,53 +5,66 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/foreach.hpp>
+
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
 
+void help (po::options_description &opt_desc, char **argv)
+{
+    ROS_INFO ("Usage: %s /path/to/all/files/ output_bag.bag [options]", fs::path (argv[0]).leaf ().c_str ());
+    std::cout << opt_desc;
+}
 
 int main (int argc, char **argv)
 {
-    if (argc < 3)
-    {
-        std::cout << "Too few arguments.\n";
-        std::cout << "Usage: " << argv[0] << " base_dir output.bag\n";
-        exit (0);
-    }
-
-    fs::path fs_path (argv[1]);
-    if (!fs::is_directory (fs_path) || !fs::exists (fs_path))
-    {
-        std::cout << "Provided first argument (base_dir) is not a valid dir or does not exist!\n";
-        return -1;
-    }
-
-    po::options_description desc ("Allowed options");
+    po::options_description opt_desc ("Allowed options");
     std::string name_space;
     std::string fisheye_name;
     std::string narrow_name;
     std::string depth_name;
     std::string timestamp_name;
     bool no_narrow = false;
-    desc.add_options ()
+    opt_desc.add_options ()
+            ("help,h", "produce help message")
             ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
             ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
             ("pointcloud", po::value<std::string> (&depth_name)->default_value ("depth"), "name for pointcloud topic and frame id")
             ("timestamp", po::value<std::string> (&timestamp_name)->default_value ("images.txt"), "name for the timestamp file")
-            ("no_narrow", po::bool_switch (&no_narrow), "provide it if narrow images should not be saved into bag files") ;
+            ("no_narrow", po::bool_switch (&no_narrow), "provide, if narrow images should not be saved into the bag file");
 
     // Parse the command line catching and displaying any
     // parser errors
     po::variables_map vm;
     try
     {
-        po::store (po::parse_command_line (argc, argv, desc), vm);
+        po::store (po::command_line_parser (argc, argv).options (opt_desc).run(), vm);
         po::notify (vm);
     }
     catch (std::exception &e)
     {
-        std::cout << std::endl << e.what() << std::endl;
-        std::cout << desc << std::endl;
+        ROS_WARN ("Exeption occured: %s", e.what ());
+        help (opt_desc, argv);
+        return 0;
+    }
+    if (vm.count ("help"))
+    {
+        help (opt_desc, argv);
+        return 0;
+    }
+
+    if (argc < 3)
+    {
+        ROS_WARN ("Number of arguments does not match minimum requieremt!");
+        help (opt_desc, argv);
+        return 0;
+    }
+
+    fs::path fs_path (argv[1]);
+    if (!fs::is_directory (fs_path) || !fs::exists (fs_path))
+    {
+        ROS_WARN ("Provided first argument (base_dir) is not a valid dir or does not exist!");
+        return 0;
     }
 
     std::stringstream small_img_header;
@@ -80,6 +93,11 @@ int main (int argc, char **argv)
     // sort the file names
     std::sort (files.begin (), files.end ());
 
+    if (fs::exists (fs::path (argv[2])))
+    {
+        ROS_WARN ("Provided output file %s already exists. Please provide another name!", argv[2]);
+        return 0;
+    }
     rosbag::Bag bag (argv[2], rosbag::bagmode::Write);
     FILE *fp3;
     // parse the files
