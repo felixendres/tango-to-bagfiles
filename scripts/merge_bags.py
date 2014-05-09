@@ -9,6 +9,7 @@ import sys
 def main():
     if len(sys.argv) <2 :
         print("Usage: {} output_bag in_bag1 in_bag2 ...".format(sys.argv[0]))
+        print ("I have {}".format(' '.join(sys.argv)))
         return
 
     in_bags = []

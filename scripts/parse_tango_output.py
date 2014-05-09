@@ -60,7 +60,7 @@ def main():
     print("Mergin the bags")
     call(['rosrun',
           'superframe_parser',
-          'merge_bags',
+          'merge_bags.py',
           output_bag,
           '/tmp/tango_poses.bag',
           '/tmp/tango_tfs.bag',
