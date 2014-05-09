@@ -18,3 +18,4 @@ CMakeLists.txt.user
 
 stuff
 /test_superframes/*.bag
+/test_superframes/depth_img*

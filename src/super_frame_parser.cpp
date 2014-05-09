@@ -4,12 +4,12 @@
 SuperFrameParser::SuperFrameParser (const std::string &name_space,
                                     const std::string &fisheye_name,
                                     const std::string &narrow_name,
-                                    const std::string &pointcloud_name,
+                                    const std::string &depth_name,
                                     const std::string &timestamp_file) :
     name_space_ (name_space),
     fisheye_name_ (fisheye_name),
     narrow_name_ (narrow_name),
-    pointcloud_name_ (pointcloud_name)
+    depth_name_ (depth_name)
 {
     buildTimestampMap (timestamp_file);
 }
@@ -20,13 +20,14 @@ SuperFrameParser::~SuperFrameParser ()
 }
 
 void SuperFrameParser::parse (const std::string &super_frame_file,
-                              const std::string &depth_intrinsics,
-                              const std::string &fisheye_intrinsics,
-                              const std::string &narrow_intrinsics)
+                              const std::string &fisheye_intrinsics_file,
+                              const std::string &narrow_intrinsics_file,
+                              const std::string &depth_intrinsics_file)
 {
     // create object
     fisheye_msgs_.reset (new sensor_msgs::Image ());
     narrow_msgs_.reset(new sensor_msgs::Image ());
+    depth_msgs_.reset(new sensor_msgs::Image ());
     point_cloud_msgs_.reset (new sensor_msgs::PointCloud2 ());
     imu_msgs_.reset (new sensor_msgs::Imu ());
 
@@ -45,11 +46,13 @@ void SuperFrameParser::parse (const std::string &super_frame_file,
     // convert file to super frame format
     parseSfFile (super_frame_file);
     // fill in the data for the small image
-    fillFisheyeMsg (fisheye_intrinsics);
+    fillFisheyeMsg (fisheye_intrinsics_file);
     // fill in the data for the big image
-    fillNarrowMsg (narrow_intrinsics);
-    // fill in the data for the depth image
-    fillPointCloudMsg (depth_intrinsics);
+    fillNarrowMsg (narrow_intrinsics_file);
+    // fill in the data for the big image
+    fillDepthMsg (depth_intrinsics_file);
+    // fill in the data for the pointcloud
+    fillPointCloudMsg ();
     // fill in the data for the imu
 //    fillImuMsg ();
 
@@ -232,21 +235,34 @@ void SuperFrameParser::fillNarrowMsg (const std::string &params_file)
     narrow_info_->P = P;
 }
 
-void SuperFrameParser::fillPointCloudMsg (const std::string &params_file)
+void SuperFrameParser::fillDepthMsg (const std::string &params_file)
 {
-    sensor_msgs::ImagePtr depth_image (new sensor_msgs::Image ());
-    depth_image->height = DEPTH_IMG_HEIGHT;
-    depth_image->width = DEPTH_IMG_WIDTH;
-    depth_image->step = 2 * depth_image->width;
-    depth_image->data.resize (depth_image->width * depth_image->height * 2);
-    memcpy (&depth_image->data[0], super_frame_->depth_img, depth_image->data.size ());
+    depth_msgs_->header.frame_id = "/" + name_space_ + "/" + depth_name_;
+
+    // pre defined offset from depth to small image timestamp
+//    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second + DEPTH_TIMESTAMP_OFFSET);
+    // calculate depth offset by getting the difference from the superframe timestamps
+    std::map<std::string, double>::iterator it;
+    if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
+        throw std::runtime_error ("super frame name not found in timestamp file!");
+
+    depth_msgs_->header.stamp.fromSec (it->second +
+                                       (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.depth.timestamp) -
+                                        convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
+
+    depth_msgs_->height = DEPTH_IMG_HEIGHT;
+    depth_msgs_->width = DEPTH_IMG_WIDTH;
+    depth_msgs_->step = depth_msgs_->width * 2;
+    depth_msgs_->encoding = sensor_msgs::image_encodings::MONO16;
+    depth_msgs_->data.resize (depth_msgs_->width * depth_msgs_->height * 2);
+    memcpy (&depth_msgs_->data[0], super_frame_->depth_img, depth_msgs_->data.size ());
 
     ///// fill in the camera infos ////////
     std::vector<std::string> params;
     parseCameraInfo (params_file, params);
 
-    depth_info_->header.frame_id = point_cloud_msgs_->header.frame_id;
-    depth_info_->header.stamp = point_cloud_msgs_->header.stamp;
+    depth_info_->header.frame_id = depth_msgs_->header.frame_id;
+    depth_info_->header.stamp = depth_msgs_->header.stamp;
     depth_info_->width = atoi (params[0].c_str ());
     depth_info_->height = atoi (params[1].c_str ());
     depth_info_->distortion_model = "devernay";
@@ -272,27 +288,18 @@ void SuperFrameParser::fillPointCloudMsg (const std::string &params_file)
                                    0.0,                       atof (params[3].c_str ()), atof (params[5].c_str ()), 0.,
                                    0.0,                       0.0,                       1.0,                       0. } ;
     depth_info_->P = P;
+}
 
-
+void SuperFrameParser::fillPointCloudMsg ()
+{
     pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-    convertImageToPointCloud (depth_image, point_cloud);
+    convertImageToPointCloud (depth_msgs_, point_cloud);
 
     pcl::toROSMsg (*point_cloud, *point_cloud_msgs_);
-    point_cloud_msgs_->header.frame_id = "/" + name_space_ + "/" + pointcloud_name_;
 
-    // pre defined offset from depth to small image timestamp
-//    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second + DEPTH_TIMESTAMP_OFFSET);
-    // calculate depth offset by getting the difference from the superframe timestamps
-    std::map<std::string, double>::iterator it;
-    if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
-        throw std::runtime_error ("super frame name not found in timestamp file!");
-
-    point_cloud_msgs_->header.stamp.fromSec (it->second +
-                                             (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.depth.timestamp) -
-                                              convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
-
+    point_cloud_msgs_->header.frame_id = depth_msgs_->header.frame_id;
+    point_cloud_msgs_->header.stamp = depth_msgs_->header.stamp;
     point_cloud_msgs_->row_step = point_cloud_msgs_->width * 2;
-
 }
 
 

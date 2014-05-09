@@ -29,13 +29,13 @@ int main (int argc, char **argv)
     std::string name_space;
     std::string fisheye_name;
     std::string narrow_name;
-    std::string pointcloud_name;
+    std::string depth_name;
     bool no_narrow = false;
     desc.add_options ()
             ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
             ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
-            ("pointcloud", po::value<std::string> (&pointcloud_name)->default_value ("depth"), "name for pointcloud topic and frame id")
+            ("pointcloud", po::value<std::string> (&depth_name)->default_value ("depth"), "name for pointcloud topic and frame id")
             ("no_narrow", po::bool_switch (&no_narrow), "provide it if narrow images should not be saved into bag files") ;
 
     // Parse the command line catching and displaying any
@@ -88,7 +88,7 @@ int main (int argc, char **argv)
         bool correct_file = true;
 
         std::cout << "Parsing " << files[i] << "..." << std::endl;
-        SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, pointcloud_name);
+        SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, depth_name);
         try
         {
             sf_parser.parse (files[i]);
@@ -102,7 +102,7 @@ int main (int argc, char **argv)
         if (correct_file)
         {
             // always write small image
-            bag.write ("/" + name_space + "/" + fisheye_name + "/raw_image", sf_parser.getFisheyeImage ()->header.stamp, *sf_parser.getFisheyeImage ());
+            bag.write ("/" + name_space + "/" + fisheye_name + "/image_raw", sf_parser.getFisheyeImage ()->header.stamp, *sf_parser.getFisheyeImage ());
             bag.write ("/" + name_space + "/" + fisheye_name + "/camera_info", sf_parser.getFisheyeCameraInfo ()->header.stamp,
                        *sf_parser.getFisheyeCameraInfo ());
 
@@ -114,7 +114,7 @@ int main (int argc, char **argv)
                                                                            sf_parser.getSuperFrame ()->header.frame.big.timestamp);
                 if (narrow_timestamp != prev_narrow_timestamp)
                 {
-                    bag.write ("/" + name_space + "/" + narrow_name + "/raw_image", sf_parser.getNarrowImage ()->header.stamp, *sf_parser.getNarrowImage ());
+                    bag.write ("/" + name_space + "/" + narrow_name + "/image_raw", sf_parser.getNarrowImage ()->header.stamp, *sf_parser.getNarrowImage ());
                     bag.write ("/" + name_space + "/" + narrow_name + "/camera_info", sf_parser.getNarrowCameraInfo ()->header.stamp,
                                *sf_parser.getNarrowCameraInfo ());
                 }
@@ -128,20 +128,22 @@ int main (int argc, char **argv)
                                                                       sf_parser.getSuperFrame ()->header.frame.depth.timestamp);
             if (depth_timestamp != prev_depth_timestamp)
             {
-                bag.write ("/" + name_space + "/" + pointcloud_name + "/raw_data", sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
+                bag.write ("/" + name_space + "/" + depth_name + "/pointcloud", sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
+                bag.write ("/" + name_space + "/" + depth_name + "/image_raw", sf_parser.getDepthImage ()->header.stamp, *sf_parser.getDepthImage ());
+                bag.write ("/" + name_space + "/" + depth_name + "/camera_info", sf_parser.getDepthCameraInfo() ->header.stamp, *sf_parser.getDepthCameraInfo ());
+
+                // save depth img to disk
+//                std::stringstream ss_depth;
+//                ss_depth << "depth_img_" << fs::path (files[i]).filename ().string() ;
+//                if ((fp3 = fopen (ss_depth.str ().c_str (), "wb")) != NULL)
+//                {
+//                    fprintf (fp3, depth_img_header.str ().c_str ());
+//                    fwrite (&sf_parser.getDepthImage()->data[0], 2, DEPTH_IMG_WIDTH * DEPTH_IMG_HEIGHT, fp3);
+//                    fclose (fp3);
+//                }
             }
 
             prev_depth_timestamp = depth_timestamp;
-
-            // save big img to disk
-//            std::stringstream ss_big;
-//            ss_big << "big_img_" << fs::path (files[i]).filename ().string() ;
-//            if ((fp3 = fopen (ss_big.str ().c_str (), "wb")) != NULL)
-//            {
-//                fprintf (fp3, big_img_header.str ().c_str ());
-//                fwrite (&sf_parser.getBigImage()->data[0], 1, BIG_RGB_WIDTH * BIG_RGB_HEIGHT, fp3);
-//                fclose (fp3);
-//            }
         }
     }
 
