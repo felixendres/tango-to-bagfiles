@@ -16,6 +16,7 @@ from nav_msgs.msg import Odometry
 def main():
     if len(sys.argv) != 3:
         print("Usage: {} /location/to/images.txt outputbag.bag".format(sys.argv[0]))
+        print ("I have {}".format(' '.join(sys.argv)))
         return
 
     images_file = open(sys.argv[1])
