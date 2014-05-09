@@ -76,17 +76,26 @@ void SuperFrameParser::parseSfFile (const std::string &file)
     // get header dimensions
     if (fscanf (fd, "P5\n%d %d\n", &img_width, &img_height) != 2)
     {
-        throw std::runtime_error ("Failed to parse header dimensions\n");
+        std::stringstream ss;
+        ss << "Failed to parse header dimensions for " << file;
+        throw std::runtime_error (ss.str ());
     }
     // get comments
     char *ret_str = fgets (comment_str, 4082, fd);
     if (ret_str == NULL)
-        throw std::runtime_error ("Failed to parse comments");
-
+    {
+        std::stringstream ss;
+        ss << "Failed to parse comments for " << file;
+        throw std::runtime_error (ss.str ());
+    }
     // get max value
     unsigned int max_val;
     if (fscanf(fd, "%d\n", &max_val) != 1)
-        throw std::runtime_error ("Failed to parse max value\n");
+    {
+        std::stringstream ss;
+        ss << "Failed to parse max value for " << file;
+        throw std::runtime_error (ss.str ());
+    }
 
     // Read in the data portion starting here;
     uint16_t *buffer =  static_cast<uint16_t*> (malloc (sizeof (sf2_t)));
@@ -102,8 +111,11 @@ void SuperFrameParser::parseCameraInfo (const std::string &params_file, std::vec
 {
     std::ifstream f (params_file.c_str ());
     if (!f.is_open ())
-        throw std::runtime_error ("Could not open intrinsic parameters file!");
-
+    {
+        std::stringstream ss;
+        ss << "Could not open intrinsic parameters " << params_file;
+        throw std::runtime_error (ss.str ());
+    }
     std::string line;
     getline (f, line);
 
@@ -140,7 +152,11 @@ void SuperFrameParser::fillFisheyeMsg (const std::string &params_file)
     fisheye_msgs_->header.frame_id = "/" + name_space_ + "/" + fisheye_name_;
     std::map<std::string, double>::iterator it;
     if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
-        throw std::runtime_error ("super frame name not found in timestamp file!");
+    {
+        std::stringstream ss;
+        ss << "SuperFrame Name not found in " << params_file;
+        throw std::runtime_error (ss.str ());
+    }
 
     fisheye_msgs_->header.stamp.fromSec (it->second);
     fisheye_msgs_->height = SMALL_IMG_HEIGHT;
@@ -195,7 +211,12 @@ void SuperFrameParser::fillNarrowMsg (const std::string &params_file)
 
     std::map<std::string, double>::iterator it;
     if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
-        throw std::runtime_error ("super frame name not found in timestamp file!");
+    {
+        std::stringstream ss;
+        ss << "SuperFrame Name not found in " << params_file;
+        throw std::runtime_error (ss.str ());
+    }
+
 
     narrow_msgs_->header.stamp.fromSec (it->second);
     narrow_msgs_->height = BIG_RGB_HEIGHT;
@@ -248,7 +269,12 @@ void SuperFrameParser::fillDepthMsg (const std::string &params_file)
     // calculate depth offset by getting the difference from the superframe timestamps
     std::map<std::string, double>::iterator it;
     if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
-        throw std::runtime_error ("super frame name not found in timestamp file!");
+    {
+        std::stringstream ss;
+        ss << "SuperFrame Name not found in " << params_file;
+        throw std::runtime_error (ss.str ());
+    }
+
 
     depth_msgs_->header.stamp.fromSec (it->second +
                                        (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.depth.timestamp) -
@@ -316,8 +342,11 @@ void SuperFrameParser::buildTimestampMap (const std::string &timestamp_file)
 {
     std::ifstream f (timestamp_file.c_str ());
     if (!f.is_open ())
-        throw std::runtime_error ("Could not open timestamp file");
-
+    {
+        std::stringstream ss;
+        ss << "Could not open timestamp file " << timestamp_file;
+        throw std::runtime_error (ss.str ());
+    }
     std::string line;
     std::string token;
     std::string delimiter = ",";
