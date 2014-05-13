@@ -41,12 +41,12 @@ public:
         \param[in] fisheye_name name for the fisheye topic and frame id
         \param[in] narrow_name name for the narrow topic and frame id
         \param[in] pointcloud_name name for the pointcloud topic and frame id
-        \param[in] timestamp_file name path to the file with the timestamps */
+        \param[in] timestamp_name name for the file with the timestamps */
     SuperFrameParser (const std::string &name_space = "tango",
                       const std::string &fisheye_name = "fisheye",
                       const std::string &narrow_name = "narrow",
                       const std::string &depth_name = "depth",
-                      const std::string &timestamp_file = "images.txt");
+                      const std::string &timestamp_name = "images.txt");
 
     /** Frees allocated memory. */
     ~SuperFrameParser ();
@@ -99,6 +99,7 @@ private:
     std::string fisheye_name_;
     std::string narrow_name_;
     std::string depth_name_;
+    std::string timestamp_name_;
 
     /////////         MESSAGES         //////////
     sensor_msgs::ImagePtr fisheye_msgs_;
