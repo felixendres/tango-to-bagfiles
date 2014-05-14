@@ -98,7 +98,6 @@ int main (int argc, char **argv)
             }
         }
     }
-    std::cout << timestamp_name << std::endl;
 
     fs::path fs_path (argv[1]);
     if (!fs::is_directory (fs_path) || !fs::exists (fs_path))
