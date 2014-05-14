@@ -24,14 +24,16 @@ int main (int argc, char **argv)
     std::string depth_name;
     std::string timestamp_name;
     bool no_narrow = false;
+    bool use_adjusted = false;
     opt_desc.add_options ()
             ("help,h", "produce help message")
             ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
             ("fisheye", po::value<std::string> (&fisheye_name)->default_value ("fisheye"), "name for fisheye topic and frame id")
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
             ("pointcloud", po::value<std::string> (&depth_name)->default_value ("depth"), "name for pointcloud topic and frame id")
-            ("timestamp", po::value<std::string> (&timestamp_name)->default_value ("images.txt"), "name for the timestamp file")
-            ("no_narrow", po::bool_switch (&no_narrow), "provide, if narrow images should not be saved into the bag file");
+            ("timestamp_name", po::value<std::string> (&timestamp_name)->default_value ("images.txt"), "name for the timestamp file")
+            ("no_narrow", po::bool_switch (&no_narrow), "if provide, narrow images should are not saved into the bag file")
+            ("yes,y", po::bool_switch (&use_adjusted), "if provided, images_adjusted.txt is used, if it is found");
 
     // Parse the command line catching and displaying any
     // parser errors
@@ -60,6 +62,43 @@ int main (int argc, char **argv)
         return 0;
     }
 
+    if (fs::exists (fs::path (argv[2])))
+    {
+        ROS_WARN ("Provided output file %s already exists. Please provide another name!", argv[2]);
+        return 0;
+    }
+
+    std::string folder_name = std::string (argv[1]) + "/";
+    fs::path images_adjusted_path (folder_name + "/" + "images_adjusted.txt");
+    if (fs::exists (images_adjusted_path) && fs::is_regular_file (images_adjusted_path))
+    {
+        ROS_WARN ("Timestamp file 'images_adjusted.txt' found!!!");
+        if (use_adjusted)
+        {
+            ROS_WARN ("Using 'images_adjusted.txt' as the timestamp file!");
+            timestamp_name = "images_adjusted.txt";
+        }
+        else
+        {
+
+            ROS_WARN ("Should I use 'images_adjusted.txt' rather than '%s'? y(es) or n(o) ?\n", timestamp_name.c_str ());
+            while (true)
+            {
+                char use_adjusted;
+                std::cin >> use_adjusted;
+                if (use_adjusted == 'y')
+                {
+                    timestamp_name = "images_adjusted.txt";
+                    break;
+                }
+                else if (use_adjusted == 'n')
+                    break;
+
+                ROS_WARN ("Please answer with y(es) or n(o)!\n");
+            }
+        }
+    }
+
     fs::path fs_path (argv[1]);
     if (!fs::is_directory (fs_path) || !fs::exists (fs_path))
     {
@@ -84,7 +123,7 @@ int main (int argc, char **argv)
     {
         if (!fs::is_regular_file (it->path ()))
         {
-            std::cout << it->path ().string () << "is not a regular file! Continue..." << std::endl;
+            ROS_WARN ("%s is not a regular file! Continue...", it->path ().string ().c_str ());
             continue;
         }
         files.push_back (it->path ().string ());
@@ -93,19 +132,13 @@ int main (int argc, char **argv)
     // sort the file names
     std::sort (files.begin (), files.end ());
 
-    if (fs::exists (fs::path (argv[2])))
-    {
-        ROS_WARN ("Provided output file %s already exists. Please provide another name!", argv[2]);
-        return 0;
-    }
     rosbag::Bag bag (argv[2], rosbag::bagmode::Write);
     FILE *fp3;
     // parse the files
     for (size_t i = 0; i < files.size (); i++)
     {
         bool correct_file = true;
-        std::string folder_name = std::string (argv[1]) + "/";
-        std::cout << "Parsing " << files[i] << "..." << std::endl;
+        ROS_INFO ("Parsing %s...", files[i].c_str ());
         SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, depth_name,
                                     folder_name + timestamp_name);
         try
@@ -117,14 +150,16 @@ int main (int argc, char **argv)
         }
         catch (std::exception &e)
         {
-            std::cout << "Exception occured: " << e.what () << std::endl << "Continue..." << std::endl;
+            ROS_ERROR ("Exception occured: %s", e.what ());
+            ROS_INFO ("Continue...");
             correct_file = false;
         }
 
         if (correct_file)
         {
             // always write small image
-            bag.write ("/" + name_space + "/" + fisheye_name + "/image_raw", sf_parser.getFisheyeImage ()->header.stamp, *sf_parser.getFisheyeImage ());
+            bag.write ("/" + name_space + "/" + fisheye_name + "/image_raw", sf_parser.getFisheyeImage ()->header.stamp,
+                       *sf_parser.getFisheyeImage ());
             bag.write ("/" + name_space + "/" + fisheye_name + "/camera_info", sf_parser.getFisheyeCameraInfo ()->header.stamp,
                        *sf_parser.getFisheyeCameraInfo ());
 
@@ -136,7 +171,8 @@ int main (int argc, char **argv)
                                                                            sf_parser.getSuperFrame ()->header.frame.big.timestamp);
                 if (narrow_timestamp != prev_narrow_timestamp)
                 {
-                    bag.write ("/" + name_space + "/" + narrow_name + "/image_raw", sf_parser.getNarrowImage ()->header.stamp, *sf_parser.getNarrowImage ());
+                    bag.write ("/" + name_space + "/" + narrow_name + "/image_raw", sf_parser.getNarrowImage ()->header.stamp,
+                               *sf_parser.getNarrowImage ());
                     bag.write ("/" + name_space + "/" + narrow_name + "/camera_info", sf_parser.getNarrowCameraInfo ()->header.stamp,
                                *sf_parser.getNarrowCameraInfo ());
                 }
