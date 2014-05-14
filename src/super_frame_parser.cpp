@@ -5,13 +5,14 @@ SuperFrameParser::SuperFrameParser (const std::string &name_space,
                                     const std::string &fisheye_name,
                                     const std::string &narrow_name,
                                     const std::string &depth_name,
-                                    const std::string &timestamp_file) :
+                                    const std::string &timestamp_name) :
     name_space_ (name_space),
     fisheye_name_ (fisheye_name),
     narrow_name_ (narrow_name),
-    depth_name_ (depth_name)
+    depth_name_ (depth_name),
+    timestamp_name_ (timestamp_name)
 {
-    buildTimestampMap (timestamp_file);
+    buildTimestampMap (timestamp_name);
 }
 
 SuperFrameParser::~SuperFrameParser ()
@@ -154,7 +155,7 @@ void SuperFrameParser::fillFisheyeMsg (const std::string &params_file)
     if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
     {
         std::stringstream ss;
-        ss << "SuperFrame Name not found in " << params_file;
+        ss << "SuperFrame " << file_name_ << " not found in " << timestamp_name_;
         throw std::runtime_error (ss.str ());
     }
 
@@ -213,7 +214,7 @@ void SuperFrameParser::fillNarrowMsg (const std::string &params_file)
     if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
     {
         std::stringstream ss;
-        ss << "SuperFrame Name not found in " << params_file;
+        ss << "SuperFrame " << file_name_ << " not found in " << timestamp_name_;
         throw std::runtime_error (ss.str ());
     }
 
@@ -264,18 +265,17 @@ void SuperFrameParser::fillDepthMsg (const std::string &params_file)
 {
     depth_msgs_->header.frame_id = "/" + name_space_ + "/" + depth_name_;
 
-    // pre defined offset from depth to small image timestamp
-//    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second + DEPTH_TIMESTAMP_OFFSET);
-    // calculate depth offset by getting the difference from the superframe timestamps
     std::map<std::string, double>::iterator it;
     if ((it = timestamp_map_.find (file_name_)) == timestamp_map_.end ())
     {
         std::stringstream ss;
-        ss << "SuperFrame Name not found in " << params_file;
+        ss << "SuperFrame " << file_name_ << " not found in " << timestamp_name_;
         throw std::runtime_error (ss.str ());
     }
 
-
+    // pre defined offset from depth to small image timestamp
+//    point_cloud_msgs_->header.stamp.fromSec (timestamp_map_.find (file_name_)->second + DEPTH_TIMESTAMP_OFFSET);
+    // calculate depth offset by getting the difference from the superframe timestamps
     depth_msgs_->header.stamp.fromSec (it->second +
                                        (convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.depth.timestamp) -
                                         convertTicksToSeconds (super_frame_->header.frame.sf_version, super_frame_->header.frame.small.timestamp)));
