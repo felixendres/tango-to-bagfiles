@@ -76,6 +76,7 @@ int main (int argc, char **argv)
         if (use_adjusted)
         {
             ROS_WARN ("Using 'images_adjusted.txt' as the timestamp file!");
+            timestamp_name = "images_adjusted.txt";
         }
         else
         {
@@ -97,6 +98,7 @@ int main (int argc, char **argv)
             }
         }
     }
+    std::cout << timestamp_name << std::endl;
 
     fs::path fs_path (argv[1]);
     if (!fs::is_directory (fs_path) || !fs::exists (fs_path))
