@@ -1,7 +1,7 @@
 #!/usr/bin/python
 from __future__ import print_function
 import numpy as np
-import sys
+import argparse
 import os
 
 import rosbag
@@ -12,15 +12,52 @@ from geometry_msgs.msg import Transform, TransformStamped
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: {} /location/to/files outputbag.bag".format(sys.argv[0]))
-        print("The folder must have images.txt, "
-              "depth_to_imu_transformation.txt, "
-              "fisheye_to_imu_transformation.txt, "
-              "narrow_to_imu_transformation.txt")
-        return
 
-    folder_name = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Create the tf messages from "
+                                                 "the Tango logs.")
+    parser.add_argument('-d', '--directory',
+                        help="The folder must have images.txt, "
+                             "depth_to_imu_transformation.txt, "
+                             "fisheye_to_imu_transformation.txt, "
+                             "narrow_to_imu_transformation.txt",
+                        required=True)
+    parser.add_argument('-o', '--output',
+                        help='output bag file (with location)',
+                        metavar='bag_filename',
+                        type=str,
+                        required=True
+                        )
+    parser.add_argument('-y',
+                        help='if images_adjusted.txt is found in the same folder'
+                             'as the supplied filename, then use it without'
+                             'asking',
+                        metavar='True/False',
+                        type=bool,
+                        default=False,
+                        choices=[True, False]
+                        )
+
+    arguments = parser.parse_args()
+    folder_name = arguments.directory
+    standard_file = os.path.join(folder_name, 'images.txt')
+    alt_file = os.path.join(folder_name, 'images_adjusted.txt')
+    if os.path.exists(alt_file):
+        if arguments.y:
+            images_file = open(alt_file)
+        else:
+            reply = None
+            while reply not in ['y', 'n']:
+                print("The images_adjusted.txt file is in the folder {}, do you"
+                      " want to use that instead? [y/n]".format(folder_name))
+                reply = raw_input()
+            if reply == 'y':
+                images_file = open(alt_file)
+            else:
+                images_file = open(standard_file)
+    else:
+        images_file = open(standard_file)
+    print("Processing data from {}...".format(images_file.name))
+
     #depth to imu
     depth_np = np.loadtxt(os.path.join(folder_name,
                                        "depth_to_imu_transformation.txt",
@@ -68,9 +105,8 @@ def main():
     narrow_transform_msg.rotation.w = quaternion[3]
 
     #for each entry in images.txt, add a transformation with the values above
-    images_file = open(os.path.join(folder_name, "images.txt"))
     #TODO skip some values? we don't need high frame rate!
-    with rosbag.Bag(sys.argv[2], 'w') as outputbag:
+    with rosbag.Bag(arguments.output, 'w') as outputbag:
         for lineno, line in enumerate(images_file):
             #lines must be of the form:
             #image_basename,t_android,t_movidius,r11,r12,r12,t1,r21,r22,r23,t2,r31,r32,r33,t3
@@ -115,7 +151,7 @@ def main():
             outputbag.write("tf", msg, rospy.Time.from_seconds(ts))
 
     outputbag.close()
-    print("Bag creation complete, bagfile: {}".format(sys.argv[2]))
+    print("Bag creation complete, bagfile: {}".format(outputbag.filename))
 
 if __name__ == '__main__':
     main()
