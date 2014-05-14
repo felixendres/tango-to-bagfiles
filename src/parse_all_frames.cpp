@@ -24,6 +24,7 @@ int main (int argc, char **argv)
     std::string depth_name;
     std::string timestamp_name;
     bool no_narrow = false;
+    bool use_adjusted = false;
     opt_desc.add_options ()
             ("help,h", "produce help message")
             ("namespace", po::value<std::string> (&name_space)->default_value ("tango"), "namespace for topics and frame ids")
@@ -31,7 +32,8 @@ int main (int argc, char **argv)
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
             ("pointcloud", po::value<std::string> (&depth_name)->default_value ("depth"), "name for pointcloud topic and frame id")
             ("timestamp_name", po::value<std::string> (&timestamp_name)->default_value ("images.txt"), "name for the timestamp file")
-            ("no_narrow", po::bool_switch (&no_narrow), "provide, if narrow images should not be saved into the bag file");
+            ("no_narrow", po::bool_switch (&no_narrow), "if provide, narrow images should are not saved into the bag file")
+            ("yes,y", po::bool_switch (&use_adjusted), "if provided, images_adjusted.txt is used, if it is found");
 
     // Parse the command line catching and displaying any
     // parser errors
@@ -70,21 +72,29 @@ int main (int argc, char **argv)
     fs::path images_adjusted_path (folder_name + "/" + "images_adjusted.txt");
     if (fs::exists (images_adjusted_path) && fs::is_regular_file (images_adjusted_path))
     {
-        ROS_WARN ("Timestamp file 'images_adjusted.txt' found!!!\n"\
-                  "Should I use 'images_adjusted.txt' rather than '%s'? y(es) or n(o) ?\n", timestamp_name.c_str ());
-        while (true)
+        ROS_WARN ("Timestamp file 'images_adjusted.txt' found!!!");
+        if (use_adjusted)
         {
-            char use_adjusted;
-            std::cin >> use_adjusted;
-            if (use_adjusted == 'y')
-            {
-                timestamp_name = "images_adjusted.txt";
-                break;
-            }
-            else if (use_adjusted == 'n')
-                break;
+            ROS_WARN ("Using 'images_adjusted.txt' as the timestamp file!");
+        }
+        else
+        {
 
-            ROS_WARN ("Please answer with y(es) or n(o)!\n");
+            ROS_WARN ("Should I use 'images_adjusted.txt' rather than '%s'? y(es) or n(o) ?\n", timestamp_name.c_str ());
+            while (true)
+            {
+                char use_adjusted;
+                std::cin >> use_adjusted;
+                if (use_adjusted == 'y')
+                {
+                    timestamp_name = "images_adjusted.txt";
+                    break;
+                }
+                else if (use_adjusted == 'n')
+                    break;
+
+                ROS_WARN ("Please answer with y(es) or n(o)!\n");
+            }
         }
     }
 
