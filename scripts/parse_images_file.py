@@ -2,7 +2,8 @@
 
 from __future__ import print_function
 import numpy as np
-import sys
+import os
+import argparse
 
 import rosbag
 import rospy
@@ -14,14 +15,57 @@ from nav_msgs.msg import Odometry
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: {} /location/to/images.txt outputbag.bag".format(sys.argv[0]))
-        print ("I have {}".format(' '.join(sys.argv)))
-        return
 
-    images_file = open(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Parse the images.txt file to "
+                                                 "create a rosbag with several "
+                                                 "PoseStamped messages.")
 
-    with rosbag.Bag(sys.argv[2], 'w') as outputbag:
+    parser.add_argument('-i',  '--input',
+                        help='file with poses (images.txt)',
+                        metavar='poses_filename',
+                        default='./images.txt',
+                        type=str,
+                        required=True
+                        )
+    parser.add_argument('-o', '--output',
+                        help='output bag file (with location)',
+                        metavar='bag_filename',
+                        type=str,
+                        required=True
+                        )
+    parser.add_argument('-y',
+                        help='if images_adjusted.txt is found in the same folder'
+                             'as the supplied filename, then use it without'
+                             'asking',
+                        metavar='True/False',
+                        type=bool,
+                        default=False,
+                        choices=[True, False]
+                        )
+
+    arguments = parser.parse_args()
+
+    images_folder, _ = os.path.split(arguments.input)
+    alt_file = os.path.join(images_folder, 'images_adjusted.txt')
+
+    if os.path.exists(alt_file):
+        if arguments.y:
+            images_file = open(alt_file)
+        else:
+            reply = None
+            while reply not in ['y', 'n']:
+                print("The images_adjusted.txt file is in the folder {}, do you"
+                      " want to use that instead? [y/n]".format(images_folder))
+                reply = raw_input()
+            if reply == 'y':
+                images_file = open(alt_file)
+            else:
+                images_file = open(arguments.input)
+    else:
+        images_file = open(arguments.input)
+
+    print("Processing data from {}...".format(images_file.name))
+    with rosbag.Bag(arguments.output, 'w') as outputbag:
         for lineno, line in enumerate(images_file):
             #lines must be of the form:
             #image_basename,t_android,t_movidius,r11,r12,r12,t1,r21,r22,r23,t2,r31,r32,r33,t3
@@ -77,7 +121,7 @@ def main():
             tfmsg.transforms.append(tf_stamped)
             outputbag.write("tf", tfmsg, rospy.Time.from_seconds(ts1))
 
-    print("Bag creation complete, bagfile: {}".format(sys.argv[2]))
+    print("Bag creation complete, bagfile: {}".format(arguments.output))
 
 if __name__ == '__main__':
     main()
