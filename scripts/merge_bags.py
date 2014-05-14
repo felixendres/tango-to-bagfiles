@@ -16,6 +16,7 @@ def main():
                         nargs='+')
     parser.add_argument('--output', '-o',
                         help='output bag',
+                        required=True,
                         type=str)
     arguments = parser.parse_args()
 
