@@ -13,3 +13,5 @@ Please note that:
  - The images from the narrow field camera are black and white only
  - The messages in the bag file is not ordered. Sorting can be done afterward.
  - This code requires the file superframe_v2.h from the Google Tango SDK.  Due to licensing issues we cannot redistribute this file. It should be copied in the include/superframe_parser folder.
+
+A video showing a recorded dataset is available at http://youtu.be/c2sGjgMlnEU
