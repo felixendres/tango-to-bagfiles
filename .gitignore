@@ -19,3 +19,6 @@ CMakeLists.txt.user
 stuff
 /test_superframes/*.bag
 /test_superframes/depth_img*
+
+#google stuff
+include/superframe_parser/superframe_v2.h
