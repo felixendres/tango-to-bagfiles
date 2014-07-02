@@ -1,6 +1,3 @@
-// Copyright 2013 Motorola Mobility LLC. Part of the Trailmix project.
-// CONFIDENTIAL. AUTHORIZED USE ONLY. DO NOT REDISTRIBUTE.
-
 #include <superframe_parser/super_frame_parser.h>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
