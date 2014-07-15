@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(superframe_parser)
 
-set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_BUILD_TYPE Release)
-#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+SET(CMAKE_CXX_FLAGS "-std=c++0x")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -121,7 +122,7 @@ include/superframe_parser/superframe_v2.h
 #add_executable(parse_single_frame src/parse_single_frame.cpp include/superframe_parser/super_frame_parser.h)
 
 add_executable(parse_all_frames
-src/parse_all_frames.cpp
+src/parse_all_frames.cpp src/yuv2rgb.cpp
 include/superframe_parser/super_frame_parser.h
 )
 

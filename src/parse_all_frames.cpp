@@ -2,6 +2,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/foreach.hpp>
+#include <vector>
 
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
@@ -10,6 +11,23 @@ void help (po::options_description &opt_desc, char **argv)
 {
     ROS_INFO ("Usage: %s /path/to/all/files/ output_bag.bag [options]", fs::path (argv[0]).leaf ().c_str ());
     std::cout << opt_desc;
+}
+
+
+template<typename T>
+const char *to_binary(T x)
+{
+    size_t bits = sizeof(T)*8;
+    static std::vector<char> binarychars(bits+1, ' ');
+    binarychars.back() = '\0';
+
+    for (int bit = 0; bit < bits; ++bit)
+    {
+        char digit = x & (1 << bit) ? '1' : '0';
+        binarychars[bits - bit - 1] = digit;
+    }
+
+    return &binarychars[0];
 }
 
 int main (int argc, char **argv)
@@ -21,6 +39,8 @@ int main (int argc, char **argv)
     std::string depth_name;
     std::string timestamp_name;
     bool no_narrow = false;
+    bool no_fisheye = false;
+    bool no_overwrite = false;
     bool use_adjusted = false;
     opt_desc.add_options ()
             ("help,h", "produce help message")
@@ -29,8 +49,10 @@ int main (int argc, char **argv)
             ("narrow", po::value<std::string> (&narrow_name)->default_value ("narrow"), "name for narrow topic and frame id")
             ("pointcloud", po::value<std::string> (&depth_name)->default_value ("depth"), "name for pointcloud topic and frame id")
             ("timestamp_name", po::value<std::string> (&timestamp_name)->default_value ("images.txt"), "name for the timestamp file")
-            ("no_narrow", po::bool_switch (&no_narrow), "if provide, narrow images should are not saved into the bag file")
+            ("no_narrow", po::bool_switch (&no_narrow), "if provide, narrow images are not saved into the bag file")
+            ("no_fisheye", po::bool_switch (&no_fisheye), "if provide, fisheye images are not saved into the bag file")
             ("yes,y", po::bool_switch (&use_adjusted), "if provided, images_adjusted.txt is used, if it is found");
+            ("no_overwrite,n", po::bool_switch (&no_overwrite), "if not provided, output bagfile from previous run is overwritten");
 
     // Parse the command line catching and displaying any
     // parser errors
@@ -61,8 +83,12 @@ int main (int argc, char **argv)
 
     if (fs::exists (fs::path (argv[2])))
     {
-        ROS_WARN ("Provided output file %s already exists. Please provide another name!", argv[2]);
-        return 0;
+        if (no_overwrite){
+            ROS_WARN ("Provided output file %s already exists. Please provide another name!", argv[2]);
+            return 0;
+        } else {
+            ROS_WARN ("Provided output file %s already exists. Will be overwritten.", argv[2]);
+        }
     }
 
     std::string folder_name = std::string (argv[1]) + "/";
@@ -130,78 +156,92 @@ int main (int argc, char **argv)
     std::sort (files.begin (), files.end ());
 
     rosbag::Bag bag (argv[2], rosbag::bagmode::Write);
-    FILE *fp3;
+    //FILE *fp3;
     // parse the files
-    for (size_t i = 0; i < files.size (); i++)
-    {
-        bool correct_file = true;
-        ROS_INFO ("Parsing %s...", files[i].c_str ());
-        SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, depth_name,
-                                    folder_name + timestamp_name);
-        try
-        {
-            sf_parser.parse (files[i],
-                             folder_name + fisheye_name + "_intrinsics.txt",
-                             folder_name + narrow_name + "_intrinsics.txt",
-                             folder_name + depth_name + "_intrinsics.txt");
-        }
-        catch (std::exception &e)
-        {
-            ROS_ERROR ("Exception occured: %s", e.what ());
-            ROS_INFO ("Continue...");
-            correct_file = false;
-        }
+    try{
+      for (size_t i = 0; i < files.size (); i++)
+      {
+          bool correct_file = true;
+          ROS_INFO ("Parsing %s...", files[i].c_str ());
+          SuperFrameParser sf_parser (name_space, fisheye_name, narrow_name, depth_name,
+                                      folder_name + timestamp_name);
+          try
+          {
+              sf_parser.parse (files[i],
+                               folder_name + fisheye_name + "_intrinsics.txt",
+                               folder_name + narrow_name + "_intrinsics.txt",
+                               folder_name + depth_name + "_intrinsics.txt");
+          }
+          catch (std::exception &e)
+          {
+              ROS_ERROR ("Exception occured: %s", e.what ());
+              ROS_INFO ("Continue...");
+              correct_file = false;
+          }
 
-        if (correct_file)
-        {
-            // always write small image
-            bag.write ("/" + name_space + "/" + fisheye_name + "/image_raw", sf_parser.getFisheyeImage ()->header.stamp,
-                       *sf_parser.getFisheyeImage ());
-            bag.write ("/" + name_space + "/" + fisheye_name + "/camera_info", sf_parser.getFisheyeCameraInfo ()->header.stamp,
-                       *sf_parser.getFisheyeCameraInfo ());
+          if (correct_file)
+          {
+              // always write small image
+              if (!no_fisheye)
+              {
+                bag.write ("/" + name_space + "/" + fisheye_name + "/image_raw", sf_parser.getFisheyeImage ()->header.stamp,
+                           *sf_parser.getFisheyeImage ());
+                bag.write ("/" + name_space + "/" + fisheye_name + "/camera_info", sf_parser.getFisheyeCameraInfo ()->header.stamp,
+                           *sf_parser.getFisheyeCameraInfo ());
+              }
 
-            if (!no_narrow)
-            {
-                // check if there is a new timestamp for the big image
-                // only write to bag, if there is a new capture
-                double narrow_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
-                                                                           sf_parser.getSuperFrame ()->header.frame.big.timestamp);
-                if (narrow_timestamp != prev_narrow_timestamp)
-                {
-                    bag.write ("/" + name_space + "/" + narrow_name + "/image_raw", sf_parser.getNarrowImage ()->header.stamp,
-                               *sf_parser.getNarrowImage ());
-                    bag.write ("/" + name_space + "/" + narrow_name + "/camera_info", sf_parser.getNarrowCameraInfo ()->header.stamp,
-                               *sf_parser.getNarrowCameraInfo ());
-                }
+              if (!no_narrow)
+              {
+                  // check if there is a new timestamp for the big image
+                  // only write to bag, if there is a new capture
+                  double narrow_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
+                                                                             sf_parser.getSuperFrame ()->header.frame.big.timestamp);
+                  ROS_INFO("Narrow Timestamp: %10.10f", narrow_timestamp);
+                  ROS_INFO("Previous nrw. TS: %10.10f", prev_narrow_timestamp);
+                  ROS_INFO("SF_Valid_Flags[0]: %s", to_binary( sf_parser.getSuperFrame ()->header.frame.sf_valid_flags[0]));
+                  ROS_INFO("SF_Valid_Flags[1]: %s", to_binary( sf_parser.getSuperFrame ()->header.frame.sf_valid_flags[1]));
+                  if (sf_parser.getSuperFrame ()->header.frame.sf_valid_flags[1] == 7)
+                  {
+                      bag.write ("/" + name_space + "/" + narrow_name + "/image_raw", sf_parser.getNarrowImage ()->header.stamp,
+                                 *sf_parser.getNarrowImage ());
+                      bag.write ("/" + name_space + "/" + narrow_name + "/camera_info", sf_parser.getNarrowCameraInfo ()->header.stamp,
+                                 *sf_parser.getNarrowCameraInfo ());
+                  }
 
-                prev_narrow_timestamp = narrow_timestamp;
-            }
+                  prev_narrow_timestamp = narrow_timestamp;
+              }
 
-            // check if there is a new timestamp for the depth image
-            // only write to bag, if there is a new capture
-            double depth_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
-                                                                      sf_parser.getSuperFrame ()->header.frame.depth.timestamp);
-            if (depth_timestamp != prev_depth_timestamp)
-            {
-                bag.write ("/" + name_space + "/" + depth_name + "/pointcloud", sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
-                bag.write ("/" + name_space + "/" + depth_name + "/image_raw", sf_parser.getDepthImage ()->header.stamp, *sf_parser.getDepthImage ());
-                bag.write ("/" + name_space + "/" + depth_name + "/camera_info", sf_parser.getDepthCameraInfo() ->header.stamp, *sf_parser.getDepthCameraInfo ());
+              // check if there is a new timestamp for the depth image
+              // only write to bag, if there is a new capture
+              double depth_timestamp = sf_parser.convertTicksToSeconds (sf_parser.getSuperFrame ()->header.frame.sf_version,
+                                                                        sf_parser.getSuperFrame ()->header.frame.depth.timestamp);
+              if (depth_timestamp != prev_depth_timestamp)
+              {
+                  bag.write ("/" + name_space + "/" + depth_name + "/pointcloud", sf_parser.getPointCloud ()->header.stamp, *sf_parser.getPointCloud ());
+                  bag.write ("/" + name_space + "/" + depth_name + "/image_raw", sf_parser.getDepthImage ()->header.stamp, *sf_parser.getDepthImage ());
+                  bag.write ("/" + name_space + "/" + depth_name + "/camera_info", sf_parser.getDepthCameraInfo() ->header.stamp, *sf_parser.getDepthCameraInfo ());
 
-                // save depth img to disk
-//                std::stringstream ss_depth;
-//                ss_depth << "depth_img_" << fs::path (files[i]).filename ().string() ;
-//                if ((fp3 = fopen (ss_depth.str ().c_str (), "wb")) != NULL)
-//                {
-//                    fprintf (fp3, depth_img_header.str ().c_str ());
-//                    fwrite (&sf_parser.getDepthImage()->data[0], 2, DEPTH_IMG_WIDTH * DEPTH_IMG_HEIGHT, fp3);
-//                    fclose (fp3);
-//                }
-            }
+                  // save depth img to disk
+  //                std::stringstream ss_depth;
+  //                ss_depth << "depth_img_" << fs::path (files[i]).filename ().string() ;
+  //                if ((fp3 = fopen (ss_depth.str ().c_str (), "wb")) != NULL)
+  //                {
+  //                    fprintf (fp3, depth_img_header.str ().c_str ());
+  //                    fwrite (&sf_parser.getDepthImage()->data[0], 2, DEPTH_IMG_WIDTH * DEPTH_IMG_HEIGHT, fp3);
+  //                    fclose (fp3);
+  //                }
+              }
 
-            prev_depth_timestamp = depth_timestamp;
-        }
+              prev_depth_timestamp = depth_timestamp;
+          }
+      }
+    } catch (rosbag::BagException e) {
+      ROS_ERROR("Caught Exception:\n%s\nTerminating", e.what());
+    } catch (...) {
+      ROS_ERROR("Caught Exception, Terminating");
     }
 
     bag.close();
+    ROS_INFO("Done");
     return 0;
 }

@@ -1,5 +1,6 @@
 #include "superframe_parser/super_frame_parser.h"
 #include <sensor_msgs/image_encodings.h>
+#include "yuv2rgb.h"
 
 SuperFrameParser::SuperFrameParser (const std::string &name_space,
                                     const std::string &fisheye_name,
@@ -222,11 +223,18 @@ void SuperFrameParser::fillNarrowMsg (const std::string &params_file)
     narrow_msgs_->header.stamp.fromSec (it->second);
     narrow_msgs_->height = BIG_RGB_HEIGHT;
     narrow_msgs_->width = BIG_RGB_WIDTH;
-    narrow_msgs_->step = narrow_msgs_->width/* * 2*/;
-    narrow_msgs_->encoding = sensor_msgs::image_encodings::MONO8;
-    narrow_msgs_->data.resize (narrow_msgs_->width * narrow_msgs_->height/* * 2*/);
-    memcpy (&narrow_msgs_->data[0], super_frame_->big_rgb, narrow_msgs_->data.size ());
+    narrow_msgs_->step = narrow_msgs_->width * 3/*rgb*/;
+    narrow_msgs_->encoding = sensor_msgs::image_encodings::RGB8;
+    narrow_msgs_->data.resize (narrow_msgs_->step * narrow_msgs_->height);
+    //memcpy (&narrow_msgs_->data[0], super_frame_->big_rgb, narrow_msgs_->data.size ());
 
+    //16bit ints in the superframe before the big rgb image -> number of 16bit UV blocks between big_rgb Y (luma) and big_rgb UV
+    size_t offset = super_frame_->big_rgb - reinterpret_cast<uint16_t*>(&super_frame_->header);
+    convertYUV420SPtoRGB8Image(reinterpret_cast<uint8_t*>(super_frame_->big_rgb), 
+                               &narrow_msgs_->data[0], 
+                               narrow_msgs_->width, 
+                               narrow_msgs_->height, 
+                               offset);//Offset due to UV data of previous Y data
 
     ///// fill in the camera infos ////////
     std::vector<std::string> params;
