@@ -229,7 +229,7 @@ void SuperFrameParser::fillNarrowMsg (const std::string &params_file)
     //memcpy (&narrow_msgs_->data[0], super_frame_->big_rgb, narrow_msgs_->data.size ());
 
     //16bit ints in the superframe before the big rgb image -> number of 16bit UV blocks between big_rgb Y (luma) and big_rgb UV
-    size_t offset = super_frame_->big_rgb - reinterpret_cast<uint16_t*>(&super_frame_->header);
+    size_t offset = reinterpret_cast<uint16_t*>(super_frame_->big_rgb) - reinterpret_cast<uint16_t*>(&super_frame_->header);
     convertYUV420SPtoRGB8Image(reinterpret_cast<uint8_t*>(super_frame_->big_rgb), 
                                &narrow_msgs_->data[0], 
                                narrow_msgs_->width, 
